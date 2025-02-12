@@ -1,9 +1,9 @@
 # Navigation Infrastructure
 
 ## Planner Server
-Run planner server: 
+Run planner server with default planner plugin: 
 ```bash
-ros2 run planner_server planner_server
+ros2 launch planner_server planner_server.launch.py
 ```
 
 The planner server provides the `navigate_to_goal` action, which navigates the robot from the given start coordinate to the given goal coordinate within the given costmap. The action publishes the robot's current distance from the start coordinate to the feedback topic. The action's interface is as follows:
@@ -40,15 +40,16 @@ ros2 topic echo /navigate_to_goal/_action/feedback
 ```
 
 ### Creating a path planner plugin
-The planner server can dynamically load a path planner plugin at runtime, making it easy to swap between different path planning algorithms. Here's how to create a path planner plugin:
+The planner server dynamically loads a path planner plugin at runtime, making it easy to swap between different path planning algorithms. Here's how to create a path planner plugin:
 
-- For this example, we will create a path planner plugin called `path_planner_plugin`; replace this with whatever you want to call your plugin
+- For this example, we will create a path planner plugin called `path_planner_plugin`; replace this with whatever you want to call your plugin (make it descriptive based on what algorithm it's implementing)
 	- `path_planner_plugin` will also be the name of the ROS2 package the plugin is contained within
-- Create the path planner plugin instruction with the following command:
+- While creating your plugin, you can always use `example_plugins/example_path_planner_plugin`
+- Create the path planner plugin package with the following command:
 ```bash
 ros2 pkg create --build-type ament_cmake path_planner_plugin --dependencies rclcpp planner_server pluginlib infra_common infra_interfaces --library-name path_planner_plugin
 ```
-- Open `include/path_planner_plugin/path_planner_plugin.hpp`, and add the following includes at the top:
+- Create and open `include/path_planner_plugin/path_planner_plugin.hpp`, and add the following includes at the top:
 ```cpp
 #include "example_path_planner_plugin/visibility_control.h"
 #include "planner_server/path_planner.hpp"
