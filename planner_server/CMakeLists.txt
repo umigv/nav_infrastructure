@@ -66,13 +66,11 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
-# Install both our interface library and executable.
-# The export tag ensures our interface can be found by dependent packages.
-install(TARGETS
-  path_planner
-  planner_server
+# Only target should be path_planner, not planner_server
+install(
+  TARGETS path_planner
   EXPORT export_${PROJECT_NAME}
-  DESTINATION lib/${PROJECT_NAME}
+  DESTINATION lib
 )
 
 # Export our targets so other packages can find and use them
