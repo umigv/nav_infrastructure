@@ -60,7 +60,7 @@ class PathPlannerPlugin : public planner_server::PathPlanner
 ```
 - Run `colcon build` to make sure this builds
 - Open your source file: `src/path_planner_plugin.cpp`
-- Using `example_path_planner_plugin.cpp` in the `example_path_planner_plugin` package (in the `example_plugins` folder within this repository) as reference, implement the necessary virtual functions from the `PathPlanner` abstract class to add your path planning logic
+- Using `example_path_planner_plugin.cpp` and `example_path_planner_plugin.hpp` in the `example_path_planner_plugin` package (in the `example_plugins` folder within this repository) as reference, implement the necessary virtual functions from the `PathPlanner` abstract class to add your path planning logic
 - Create a `plugins.xml` file in the root of your plugin package and enter the following code:
 ```xml
 <library path="path_planner_plugin">
