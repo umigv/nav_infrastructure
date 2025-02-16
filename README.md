@@ -49,11 +49,18 @@ The planner server dynamically loads a path planner plugin at runtime, making it
 ```bash
 ros2 pkg create --build-type ament_cmake path_planner_plugin --dependencies rclcpp planner_server pluginlib infra_common infra_interfaces --library-name path_planner_plugin
 ```
-- Open `include/path_planner_plugin/path_planner_plugin.hpp`, and add the following includes at the top:
-```cpp
-#include "planner_server/path_planner.hpp"
-#include "infra_common/costmap.hpp"
-```
+- Open `include/path_planner_plugin/path_planner_plugin.hpp`
+	- Add the following includes at the top:
+	```cpp
+	#include "planner_server/path_planner.hpp"
+	#include "infra_common/costmap.hpp"
+	```
+ 	- Add the following lines at the bottom, just before the `#endif`:
+	```cpp
+ 	#include <pluginlib/class_list_macros.hpp>
+
+	PLUGINLIB_EXPORT_CLASS(PathPlannerPlugin, planner_server::PathPlanner)
+ 	```
 - Make your plugin class derive from `planner_server::PathPlanner`:
 ```cpp
 class PathPlannerPlugin : public planner_server::PathPlanner
