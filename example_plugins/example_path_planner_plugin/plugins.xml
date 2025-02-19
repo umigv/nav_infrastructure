@@ -1,5 +1,0 @@
-<library path="example_path_planner_plugin">
-  <class type="ExamplePathPlannerPlugin" base_class_type="planner_server::PathPlanner">
-    <description>Example path planner plugin.</description>
-  </class>
-</library>

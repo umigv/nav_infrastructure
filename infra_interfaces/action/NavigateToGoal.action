@@ -1,7 +1,7 @@
 # Input
 nav_msgs/OccupancyGrid costmap
-Coordinate2D start
-Coordinate2D goal
+CellCoordinateMsg start
+CellCoordinateMsg goal
 ---
 
 # Final output

@@ -14,7 +14,7 @@ find_package(geometry_msgs REQUIRED)
 # Generate interfaces
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/NavigateToGoal.action"
-  "msg/Coordinate2D.msg"
+  "msg/CellCoordinateMsg.msg"
   DEPENDENCIES 
   nav_msgs 
   geometry_msgs

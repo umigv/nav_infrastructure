@@ -7,8 +7,9 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 
 #include "infra_interfaces/action/navigate_to_goal.hpp"
-#include "infra_interfaces/msg/coordinate2_d.hpp"
-#include "planner_server/path_planner.hpp"
+#include "infra_interfaces/msg/cell_coordinate_msg.hpp"
+#include "plugin_base_classes/path_planner.hpp"
+#include "infra_common/cell_coordinate.hpp"
 
 
 namespace planner_server
@@ -47,7 +48,7 @@ private:
 
     void load_planner_plugin(std::string planner_plugin)
     {
-        pluginlib::ClassLoader<PathPlanner> planner_loader("planner_server", "planner_server::PathPlanner");
+        pluginlib::ClassLoader<plugin_base_classes::PathPlanner> planner_loader("plugin_base_classes", "plugin_base_classes::PathPlanner");
         try
         {
             _planner = planner_loader.createSharedInstance(planner_plugin);
@@ -69,8 +70,8 @@ private:
         try
         {
             Costmap costmap(goal->costmap);
-            Coordinate2D start = goal->start;
-            Coordinate2D goal_coord = goal->goal;
+            CellCoordinateMsg start = goal->start;
+            CellCoordinateMsg goal_coord = goal->goal;
             if (!costmap.InBounds(start.x, start.y) || !costmap.InBounds(goal_coord.x, goal_coord.y))
             {
                 RCLCPP_ERROR(this->get_logger(), "Start or goal coordinate is out of bounds");
@@ -103,13 +104,15 @@ private:
     {
         auto action_goal = goal_handle->get_goal();
         Costmap costmap(action_goal->costmap);
-        Coordinate2D start = action_goal->start;
-        Coordinate2D goal = action_goal->goal;
-        RCLCPP_INFO(get_logger(), "Navigating from (%ld, %ld) to (%ld, %ld)", start.x, start.y, goal.x, goal.y);
+        CellCoordinateMsg startMsg = action_goal->start;
+        CellCoordinateMsg goalMsg = action_goal->goal;
+        CellCoordinate start = {startMsg.x, startMsg.y};
+        CellCoordinate goal = {goalMsg.x, goalMsg.y};
+        RCLCPP_INFO(get_logger(), "Navigating from (%d, %d) to (%d, %d)", start.x, start.y, goal.x, goal.y);
 
         auto drivable = [](int cost) { return cost == 0; };
         // Need to include start in this path
-        std::vector<Coordinate2D> path = _planner->FindPath(costmap, 
+        std::vector<CellCoordinate> path = _planner->FindPath(costmap, 
             drivable,
             start,
             goal);
@@ -127,7 +130,7 @@ private:
         auto feedback = std::make_shared<NavigateToGoal::Feedback>();
         auto sleep_duration = std::chrono::milliseconds(500);
 
-        for (Coordinate2D coord : path)
+        for (CellCoordinate coord : path)
         {
             geometry_msgs::msg::Pose pose;
             pose.position.x = double(coord.x);
@@ -153,7 +156,7 @@ private:
         }
     }
 
-    std::shared_ptr<PathPlanner> _planner;
+    std::shared_ptr<plugin_base_classes::PathPlanner> _planner;
     rclcpp_action::Server<NavigateToGoal>::SharedPtr _navigate_server;
     std::string _odom_topic;
 };  

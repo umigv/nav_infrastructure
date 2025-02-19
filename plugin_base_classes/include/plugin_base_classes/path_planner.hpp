@@ -5,10 +5,10 @@
 #include <functional>
 
 #include "infra_common/costmap.hpp"
-#include "infra_interfaces/msg/coordinate2_d.hpp"
+#include "infra_common/cell_coordinate.hpp"
 
 
-namespace planner_server
+namespace plugin_base_classes
 {
 
 class PathPlanner
@@ -20,10 +20,10 @@ public:
     // If no path is found, an empty vector should be returned
     // drivable is given the cost value of a costmap cell and returns whether that
     // cell is drivable
-    virtual std::vector<infra_interfaces::msg::Coordinate2D> FindPath(infra_common::Costmap costmap, 
+    virtual std::vector<infra_common::CellCoordinate> FindPath(infra_common::Costmap costmap, 
         std::function<bool(int)> drivable,
-        infra_interfaces::msg::Coordinate2D start,
-        infra_interfaces::msg::Coordinate2D goal) = 0;
+        infra_common::CellCoordinate start,
+        infra_common::CellCoordinate goal) = 0;
     virtual ~PathPlanner() {}
 
 protected:

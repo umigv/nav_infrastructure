@@ -18,6 +18,7 @@
   <depend>infra_common</depend>
   <depend>rclcpp_action</depend>
   <depend>infra_interfaces</depend>
+  <depend>plugin_base_classes</depend>
   
 
   <test_depend>ament_lint_auto</test_depend>
