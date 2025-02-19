@@ -49,15 +49,25 @@ The planner server dynamically loads a path planner plugin at runtime, making it
 ```bash
 ros2 pkg create --build-type ament_cmake path_planner_plugin --dependencies rclcpp planner_server pluginlib infra_common infra_interfaces --library-name path_planner_plugin
 ```
-- Open `include/path_planner_plugin/path_planner_plugin.hpp`, and add the following includes at the top:
-```cpp
-#include "planner_server/path_planner.hpp"
-#include "infra_common/costmap.hpp"
-```
+- Open `include/path_planner_plugin/path_planner_plugin.hpp`
+	- Add the following includes at the top:
+	```cpp
+	#include "planner_server/path_planner.hpp"
+	#include "infra_common/costmap.hpp"
+	```
+ 	- Add the following lines at the bottom, just before the `#endif`:
+	```cpp
+ 	#include <pluginlib/class_list_macros.hpp>
+
+	PLUGINLIB_EXPORT_CLASS(PathPlannerPlugin, planner_server::PathPlanner)
+ 	```
 - Make your plugin class derive from `planner_server::PathPlanner`:
 ```cpp
 class PathPlannerPlugin : public planner_server::PathPlanner
 ```
+- Run `colcon build` to make sure this builds
+- Open your source file: `src/path_planner_plugin.cpp`
+- Using `example_path_planner_plugin.cpp` and `example_path_planner_plugin.hpp` in the `example_path_planner_plugin` package (in the `example_plugins` folder within this repository) as reference, implement the necessary virtual functions from the `PathPlanner` abstract class to add your path planning logic
 - Create a `plugins.xml` file in the root of your plugin package and enter the following code:
 ```xml
 <library path="path_planner_plugin">
