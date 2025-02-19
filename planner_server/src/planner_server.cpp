@@ -72,6 +72,13 @@ private:
             Costmap costmap(goal->costmap);
             CellCoordinateMsg start = goal->start;
             CellCoordinateMsg goal_coord = goal->goal;
+
+            if (start == goal_coord)
+            {
+                RCLCPP_ERROR(this->get_logger(), "Start and goal coordinates are the same");
+                return rclcpp_action::GoalResponse::REJECT;
+            }
+
             if (!costmap.InBounds(start.x, start.y) || !costmap.InBounds(goal_coord.x, goal_coord.y))
             {
                 RCLCPP_ERROR(this->get_logger(), "Start or goal coordinate is out of bounds");
