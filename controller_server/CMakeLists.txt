@@ -12,6 +12,8 @@ find_package(infra_interfaces REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(plugin_base_classes REQUIRED)
+find_package(infra_common REQUIRED)
 
 add_library(controller INTERFACE)
 
@@ -35,6 +37,8 @@ ament_target_dependencies(controller_server
   pluginlib
   rclcpp_action
   geometry_msgs
+  plugin_base_classes
+  infra_common
 )
 
 install(

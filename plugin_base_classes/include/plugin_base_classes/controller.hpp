@@ -1,19 +1,19 @@
-#ifndef CONTROLLER_SERVER_LOCAL_PLANNER_HPP
-#define CONTROLLER_SERVER_LOCAL_PLANNER_HPP
+#ifndef PLUGIN_BASE_CLASSES_CONTROLLER_HPP
+#define PLUGIN_BASE_CLASSES_CONTROLLER_HPP
 
 #include <vector>
 
-#include "infra_interfaces/msg/coordinate2_d.hpp"
+#include "infra_common/cell_coordinate.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 
-namespace controller_server
+namespace plugin_base_classes
 {
 
 class Controller
 {
 public:
-    virtual void set_path(const std::vector<infra_interfaces::msg::Coordinate2D> &path) = 0;
+    virtual void set_path(const std::vector<infra_common::CellCoordinate> &path) = 0;
 
     virtual geometry_msgs::msg::Twist compute_next_command_velocity(const geometry_msgs::msg::Pose &current_pose,
         const geometry_msgs::msg::Twist &current_velocity) = 0;

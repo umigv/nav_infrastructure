@@ -1,7 +1,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "pluginlib/class_loader.hpp"
 
-#include "controller_server/controller.hpp"
+#include "plugin_base_classes/controller.hpp"
 
 namespace controller_server
 {
@@ -20,7 +20,7 @@ public:
 private:
     void load_controller_plugin(const std::string &controller_plugin)
     {
-        pluginlib::ClassLoader<Controller> controller_loader("controller_server", "controller_server::Controller");
+        pluginlib::ClassLoader<plugin_base_classes::Controller> controller_loader("plugin_base_classes", "plugin_base_classes::Controller");
         try
         {
             _controller = controller_loader.createSharedInstance(controller_plugin);
@@ -32,7 +32,7 @@ private:
         }
     }
 
-    std::shared_ptr<Controller> _controller;
+    std::shared_ptr<plugin_base_classes::Controller> _controller;
 };
 
 } // namespace controller_server

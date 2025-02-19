@@ -20,7 +20,7 @@ public:
     // If no path is found, an empty vector should be returned
     // drivable is given the cost value of a costmap cell and returns whether that
     // cell is drivable
-    virtual std::vector<infra_common::CellCoordinate> FindPath(const infra_common::Costmap &costmap, 
+    virtual std::vector<infra_common::CellCoordinate> find_path(const infra_common::Costmap &costmap, 
         const std::function<bool(int)> &drivable,
         const infra_common::CellCoordinate &start,
         const infra_common::CellCoordinate &goal) = 0;

@@ -119,7 +119,7 @@ private:
 
         auto drivable = [](int cost) { return cost == 0; };
         // Need to include start in this path
-        std::vector<CellCoordinate> path = _planner->FindPath(costmap, 
+        std::vector<CellCoordinate> path = _planner->find_path(costmap, 
             drivable,
             start,
             goal);
