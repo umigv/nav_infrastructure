@@ -52,7 +52,7 @@ private:
         try
         {
             _planner = planner_loader.createSharedInstance(planner_plugin);
-            RCLCPP_INFO(get_logger(), "Loaded planner plugin successfully");
+            RCLCPP_INFO(get_logger(), "Loaded planner plugin %s successfully", planner_plugin.c_str());
         }
         catch(pluginlib::PluginlibException& ex)
         {
