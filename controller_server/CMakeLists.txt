@@ -41,11 +41,6 @@ ament_target_dependencies(controller_server
   infra_common
 )
 
-install(
-  DIRECTORY include/
-  DESTINATION include
-)
-
 install(TARGETS
   controller
   controller_server
