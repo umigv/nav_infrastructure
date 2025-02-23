@@ -18,6 +18,8 @@ public:
     virtual geometry_msgs::msg::Twist compute_next_command_velocity(const geometry_msgs::msg::Pose &current_pose,
         const geometry_msgs::msg::Twist &current_velocity) = 0;
 
+    virtual bool isFinished() const = 0;
+
     virtual ~Controller() {}
 
 protected:
