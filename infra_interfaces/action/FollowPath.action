@@ -7,4 +7,4 @@ bool success
 ---
 
 # Feedback
-geometry_msgs/Twist current_velocity
+geometry_msgs/Pose distance_from_start
