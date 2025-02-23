@@ -15,6 +15,7 @@ find_package(geometry_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/NavigateToGoal.action"
   "msg/CellCoordinateMsg.msg"
+  "action/FollowPath.action"
   DEPENDENCIES 
   nav_msgs 
   geometry_msgs

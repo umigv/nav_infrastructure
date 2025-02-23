@@ -1,0 +1,10 @@
+# Input
+CellCoordinateMsg[] path
+---
+
+# Final output
+bool success
+---
+
+# Feedback
+geometry_msgs/Twist current_velocity
