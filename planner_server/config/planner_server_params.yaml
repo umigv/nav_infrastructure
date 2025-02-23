@@ -1,4 +1,4 @@
 planner_server:
   ros__parameters:
-    planner_plugin: "planner_plugins::BfsPlanner"
+    planner_plugin: "planner_plugins::ExamplePlanner"
     odom_topic: "/odom"

@@ -15,20 +15,8 @@ find_package(geometry_msgs REQUIRED)
 find_package(plugin_base_classes REQUIRED)
 find_package(infra_common REQUIRED)
 
-add_library(controller INTERFACE)
-
-target_include_directories(controller INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-  ${infra_common_INCLUDE_DIRS}
-)
-
 add_executable(controller_server 
   src/controller_server.cpp
-)
-
-target_link_libraries(controller_server
-  controller
 )
 
 ament_target_dependencies(controller_server
@@ -41,17 +29,17 @@ ament_target_dependencies(controller_server
   infra_common
 )
 
-install(TARGETS
-  controller
-  controller_server
-  EXPORT export_${PROJECT_NAME}
-  DESTINATION lib/${PROJECT_NAME}
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+install(
+  DIRECTORY config launch
+  DESTINATION share/${PROJECT_NAME}
 )
 
-ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-
-ament_export_include_directories(
-  include
+install(TARGETS controller_server
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()
