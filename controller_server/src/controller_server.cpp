@@ -10,6 +10,7 @@
 #include "infra_interfaces/action/follow_path.hpp"
 #include "infra_interfaces/msg/cell_coordinate_msg.hpp"
 #include "infra_common/cell_coordinate.hpp"
+#include "controller_server/pose_manager.hpp"
 
 namespace controller_server
 {
@@ -17,6 +18,7 @@ namespace controller_server
 using namespace std::placeholders;
 using namespace infra_common;
 using namespace infra_interfaces::msg;
+using namespace geometry_msgs::msg;
 
 using FollowPath = infra_interfaces::action::FollowPath;
 using GoalHandleFollowPath = rclcpp_action::ServerGoalHandle<FollowPath>;
@@ -42,7 +44,7 @@ public:
             std::bind(&ControllerServer::odom_callback, this, _1));
 
         std::string cmd_vel_topic = get_parameter("cmd_vel_topic").as_string();
-        _cmd_vel_publisher = create_publisher<geometry_msgs::msg::Twist>(cmd_vel_topic, 10);
+        _cmd_vel_publisher = create_publisher<Twist>(cmd_vel_topic, 10);
 
         std::string controller_plugin = get_parameter("controller_plugin").as_string();
         load_controller_plugin(controller_plugin);
@@ -53,8 +55,6 @@ public:
         RCLCPP_INFO(get_logger(), "Command velocity topic is %s", cmd_vel_topic.c_str());
         RCLCPP_INFO(get_logger(), "Velocity update frequency is %f", _velocity_update_frequency);
 
-        reset_starting_pose();
-        
         _follow_path_server = rclcpp_action::create_server<FollowPath>(this,
             "follow_path",
             std::bind(&ControllerServer::handle_goal, this, _1, _2),
@@ -78,26 +78,14 @@ private:
         }
     }
 
-    void reset_starting_pose()
-    {
-        geometry_msgs::msg::Point position;
-        position.x = 0;
-        position.y = 0;
-        position.z = 0;
-        geometry_msgs::msg::Quaternion orientation;
-        orientation.x = 0;
-        orientation.y = 0;
-        orientation.z = 0;
-        orientation.w = 1;
-        _starting_pose.position = position;
-        _starting_pose.orientation = orientation;
-    }
-
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
     {
-        RCLCPP_INFO(get_logger(), "Received odometry message");
-        geometry_msgs::msg::Pose absolute_pose = msg->pose.pose;
-        update_distance_from_start(pose_difference(absolute_pose, _starting_pose));
+        Pose abs_pose = msg->pose.pose;
+        RCLCPP_INFO(get_logger(), "Received odometry message, updating absolute position to (%f, %f, %f)", 
+            abs_pose.position.x, 
+            abs_pose.position.y, 
+            abs_pose.position.z);
+        _pose_mgr.update_absolute_pose(abs_pose);
     }
 
     rclcpp_action::GoalResponse handle_goal(const rclcpp_action::GoalUUID & uuid,
@@ -126,13 +114,44 @@ private:
     void follow_path(const std::shared_ptr<GoalHandleFollowPath> goal_handle)
     {
         RCLCPP_INFO(get_logger(), "Following path");
+
         auto goal = goal_handle->get_goal();
         std::vector<CellCoordinate> path = convert_path(goal->path);
-
         _controller->set_path(path);
-        
 
+        // The poses we are passing to the controller are relative to the costmap, so 
+        // set the origin to the absolute pose of the costmap origin
+        _pose_mgr.set_origin(costmap_origin_abs_pose(path.front()));
+
+        rclcpp::Rate rate(_velocity_update_frequency);
         auto result = std::make_shared<FollowPath::Result>();
+        result->success = false;
+        while (rclcpp::ok())
+        {
+            if (goal_handle->is_canceling())
+            {
+                RCLCPP_INFO(get_logger(), "Goal was canceled");
+                goal_handle->canceled(result);
+                return;
+            }
+
+            // TODO: implement some sort of timeout in case controller fails to finish following path
+            if (_controller->is_finished())
+            {
+                RCLCPP_INFO(get_logger(), "Finished following path");
+                result->success = true;
+                break;
+            }
+
+            Pose curr_relative_pose = _pose_mgr.get_relative_pose();
+            Twist cmd_vel = _controller->compute_next_command_velocity(curr_relative_pose, Twist());
+            _cmd_vel_publisher->publish(cmd_vel);
+
+            // TODO: maybe publish feedback? 
+
+            rate.sleep();
+        }
+        
         goal_handle->succeed(result);
     }
 
@@ -146,48 +165,28 @@ private:
         return path;
     }
 
-    static geometry_msgs::msg::Pose pose_difference(const geometry_msgs::msg::Pose &pose1, 
-        const geometry_msgs::msg::Pose &pose2)
+    // Returns the absolute pose of the costmap origin; assumes the robot is currently located
+    // at the given cell within the costmap
+    // Also assumes resolution of costmap is 1 meter/cell; will need to either pass resolution
+    // as part of action goal, or normalize path so resolution is always 1 meter/cell
+    Pose costmap_origin_abs_pose(CellCoordinate curr_cell)
     {
-        geometry_msgs::msg::Pose diff;
-        diff.position.x = pose1.position.x - pose2.position.x;
-        diff.position.y = pose1.position.y - pose2.position.y;
-        diff.position.z = pose1.position.z - pose2.position.z;
-        
-        tf2::Quaternion q1, q2;
-        tf2::fromMsg(pose1.orientation, q1);
-        tf2::fromMsg(pose2.orientation, q2);
-        
-        tf2::Quaternion q_diff = q2 * q1.inverse();        
-        q_diff.normalize();
+        Pose start_relative_pose = PoseManager::default_pose(); // Relative to costmap origin
+        start_relative_pose.position.x = (double)curr_cell.x;
+        start_relative_pose.position.y = (double)curr_cell.y;
 
-        diff.orientation = tf2::toMsg(q_diff);
-        return diff;
-    }
-
-    // If this node's executor ever changes to a MultiThreadedExecutor, 
-    // update_distance_from_start and get_distance_from_start will need to be 
-    // modified to be thread-safe (e.g. using a mutex)
-    // With the current SingleThreadedExecutor (the default), a mutex cannot be
-    // used or it will block all other callbacks and deadlock
-    void update_distance_from_start(const geometry_msgs::msg::Pose &pose)
-    {
-        _distance_from_start = pose;
-    }
-
-    geometry_msgs::msg::Pose get_distance_from_start()
-    {
-        return _distance_from_start;
+        Pose start_abs_pose = _pose_mgr.get_absolute_pose();
+        Pose costmap_origin_abs_pose = PoseManager::pose_difference(start_abs_pose, start_relative_pose);
+        return costmap_origin_abs_pose;
     }
 
     std::shared_ptr<plugin_base_classes::Controller> _controller;
     rclcpp_action::Server<FollowPath>::SharedPtr _follow_path_server;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr _odom_subscriber;
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr _cmd_vel_publisher;
+    rclcpp::Publisher<Twist>::SharedPtr _cmd_vel_publisher;
     double _velocity_update_frequency;
 
-    geometry_msgs::msg::Pose _starting_pose; // Recorded at beginning of each FollowPath action execution
-    geometry_msgs::msg::Pose _distance_from_start;
+    PoseManager _pose_mgr; 
 };
 
 } // namespace controller_server

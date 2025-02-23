@@ -18,8 +18,11 @@ find_package(nav_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
+include_directories(include)
+
 add_executable(controller_server 
   src/controller_server.cpp
+  src/pose_manager.cpp
 )
 
 ament_target_dependencies(controller_server
@@ -35,9 +38,10 @@ ament_target_dependencies(controller_server
   tf2_geometry_msgs
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
 
 install(
   DIRECTORY config launch
