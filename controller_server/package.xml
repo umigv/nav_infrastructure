@@ -16,6 +16,8 @@
   <depend>geometry_msgs</depend>
   <depend>plugin_base_classes</depend>
   <depend>infra_common</depend>
+  <depend>tf2</depend>
+  <depend>tf2_geometry_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

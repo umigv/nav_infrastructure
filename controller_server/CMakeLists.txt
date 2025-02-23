@@ -14,6 +14,9 @@ find_package(rclcpp_action REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(plugin_base_classes REQUIRED)
 find_package(infra_common REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 add_executable(controller_server 
   src/controller_server.cpp
@@ -27,6 +30,9 @@ ament_target_dependencies(controller_server
   geometry_msgs
   plugin_base_classes
   infra_common
+  nav_msgs
+  tf2
+  tf2_geometry_msgs
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
