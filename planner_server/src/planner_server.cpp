@@ -33,11 +33,12 @@ public:
     {
         declare_parameter("planner_plugin", "");
         declare_parameter("odom_topic", "");
-
+        declare_parameter("isolate_path_planner", false);
+        
+        _isolate_path_planner = get_parameter("isolate_path_planner").as_bool();
         _odom_topic = get_parameter("odom_topic").as_string();
         RCLCPP_INFO(get_logger(), "Odom topic is %s", _odom_topic.c_str());
         std::string planner_plugin = get_parameter("planner_plugin").as_string();
-
         load_planner_plugin(planner_plugin);
 
         using namespace std::placeholders;
@@ -150,6 +151,12 @@ private:
 
         RCLCPP_INFO(this->get_logger(), "Found path with length %ld", path.size());
 
+        if (_isolate_path_planner)
+        {
+            simulate_robot_motion(path, goal_handle);
+            return;
+        }
+
         bool navigation_success = follow_path(path, goal_handle);
         if (!navigation_success)
         {
@@ -162,32 +169,6 @@ private:
         RCLCPP_INFO(get_logger(), "Navigation succeeded");
         result->success = true;
         goal_handle->succeed(result);
-
-        // TODO: publish current position to feedback topic and detect when robot reaches goal
-        // Basically just need to figure out where to get the robot's current position (get from ZED odometry)
-        // https://www.stereolabs.com/docs/ros2/060_positional-tracking#position-info-subscribing-in-c
-        // Use "odom" topic, which is of type nav_msgs/Odometry
-
-        // CV determines costmap resolution
-
-        // For now, simulate robot movement by publishing feedback every so often
-        // auto feedback = std::make_shared<NavigateToGoal::Feedback>();
-        // auto sleep_duration = std::chrono::milliseconds(500);
-
-        // for (CellCoordinate coord : path)
-        // {
-        //     geometry_msgs::msg::Pose pose;
-        //     pose.position.x = double(coord.x);
-        //     pose.position.y = double(coord.y);
-        //     feedback->distance_from_start = pose;
-        //     RCLCPP_INFO(get_logger(), "Publishing feedback pose (%f, %f)", pose.position.x, pose.position.y);
-        //     goal_handle->publish_feedback(feedback);
-        //     std::this_thread::sleep_for(sleep_duration);
-        // }
-
-        //     result->success = true;
-        //     goal_handle->succeed(result);
-        //     RCLCPP_INFO(get_logger(), "Navigation succeeded");
     }
 
     // Calls the follow_path action with the given path; returns true if the action
@@ -215,13 +196,6 @@ private:
             RCLCPP_ERROR(get_logger(), "Error sending follow_path goal: timeout");
             return false;
         }
-
-        // if (rclcpp::spin_until_future_complete(get_node_base_interface(), accept_future) !=
-        //     rclcpp::FutureReturnCode::SUCCESS)
-        // {
-        //     RCLCPP_ERROR(get_logger(), "Error sending follow_path goal");
-        //     return false;
-        // }
 
         auto follow_path_goal_handle = accept_future.get();
         if (!follow_path_goal_handle) 
@@ -261,6 +235,31 @@ private:
         }
     }
 
+    // Simulates robot motion by publishing feedback poses from the calculated path
+    // Used with the nav_visualization package to visualize the robot's path
+    void simulate_robot_motion(const std::vector<CellCoordinate> &path,
+        const std::shared_ptr<GoalHandleNavigateToGoal> goal_handle)
+    {
+        auto feedback = std::make_shared<NavigateToGoal::Feedback>();
+        auto sleep_duration = std::chrono::milliseconds(500);
+
+        for (CellCoordinate coord : path)
+        {
+            geometry_msgs::msg::Pose pose;
+            pose.position.x = double(coord.x);
+            pose.position.y = double(coord.y);
+            feedback->distance_from_start = pose;
+            RCLCPP_INFO(get_logger(), "Publishing feedback pose (%f, %f)", pose.position.x, pose.position.y);
+            goal_handle->publish_feedback(feedback);
+            std::this_thread::sleep_for(sleep_duration);
+        }
+
+        auto result = std::make_shared<NavigateToGoal::Result>();
+        result->success = true;
+        goal_handle->succeed(result);
+        RCLCPP_INFO(get_logger(), "Navigation succeeded");
+    }
+
     static std::vector<CellCoordinateMsg> convert_path(const std::vector<CellCoordinate> &path)
     {
         std::vector<CellCoordinateMsg> pathMsg;
@@ -278,6 +277,7 @@ private:
     rclcpp_action::Server<NavigateToGoal>::SharedPtr _navigate_server;
     rclcpp_action::Client<FollowPath>::SharedPtr _follow_path_client;
     std::string _odom_topic;
+    bool _isolate_path_planner;
 };  
 
 } // namespace planner_server
