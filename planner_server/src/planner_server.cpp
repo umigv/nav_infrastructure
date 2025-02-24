@@ -10,6 +10,7 @@
 #include "infra_interfaces/msg/cell_coordinate_msg.hpp"
 #include "plugin_base_classes/path_planner.hpp"
 #include "infra_common/cell_coordinate.hpp"
+#include "infra_interfaces/action/follow_path.hpp"
 
 
 namespace planner_server
@@ -20,6 +21,9 @@ using namespace infra_interfaces::msg;
 
 using NavigateToGoal = infra_interfaces::action::NavigateToGoal;
 using GoalHandleNavigateToGoal = rclcpp_action::ServerGoalHandle<NavigateToGoal>;
+
+using FollowPath = infra_interfaces::action::FollowPath;
+using GoalHandleFollowPath = rclcpp_action::ClientGoalHandle<FollowPath>;
 
 class PlannerServer : public rclcpp::Node
 {
@@ -42,6 +46,8 @@ public:
             std::bind(&PlannerServer::handle_goal, this, _1, _2),
             std::bind(&PlannerServer::handle_cancel, this, _1),
             std::bind(&PlannerServer::handle_accepted, this, _1));
+
+        _follow_path_client = rclcpp_action::create_client<FollowPath>(this, "follow_path");
     }
 
 private:
@@ -107,6 +113,7 @@ private:
         std::thread(std::bind(&PlannerServer::navigate, this, std::placeholders::_1), goal_handle).detach();
     }
 
+    // Executes the navigate_to_goal action
     void navigate(const std::shared_ptr<GoalHandleNavigateToGoal> goal_handle)
     {
         auto action_goal = goal_handle->get_goal();
@@ -123,8 +130,38 @@ private:
             drivable,
             start,
             goal);
+        
+        auto result = std::make_shared<NavigateToGoal::Result>();
+        if (path.empty())
+        {
+            RCLCPP_ERROR(get_logger(), "No path found");
+            result->success = false;
+            goal_handle->abort(result);
+            return;
+        }
+
+        if (path.back() != goal)
+        {
+            RCLCPP_ERROR(get_logger(), "Calculated path does not end at goal");
+            result->success = false;
+            goal_handle->abort(result);
+            return;
+        } 
+
         RCLCPP_INFO(this->get_logger(), "Found path with length %ld", path.size());
-        // Call local planner plugin here
+
+        bool navigation_success = follow_path(path, goal_handle);
+        if (!navigation_success)
+        {
+            RCLCPP_ERROR(get_logger(), "Failed to follow the calculated path");
+            result->success = false;
+            goal_handle->abort(result);
+            return;
+        }
+
+        RCLCPP_INFO(get_logger(), "Navigation succeeded");
+        result->success = true;
+        goal_handle->succeed(result);
 
         // TODO: publish current position to feedback topic and detect when robot reaches goal
         // Basically just need to figure out where to get the robot's current position (get from ZED odometry)
@@ -134,37 +171,112 @@ private:
         // CV determines costmap resolution
 
         // For now, simulate robot movement by publishing feedback every so often
-        auto feedback = std::make_shared<NavigateToGoal::Feedback>();
-        auto sleep_duration = std::chrono::milliseconds(500);
+        // auto feedback = std::make_shared<NavigateToGoal::Feedback>();
+        // auto sleep_duration = std::chrono::milliseconds(500);
 
+        // for (CellCoordinate coord : path)
+        // {
+        //     geometry_msgs::msg::Pose pose;
+        //     pose.position.x = double(coord.x);
+        //     pose.position.y = double(coord.y);
+        //     feedback->distance_from_start = pose;
+        //     RCLCPP_INFO(get_logger(), "Publishing feedback pose (%f, %f)", pose.position.x, pose.position.y);
+        //     goal_handle->publish_feedback(feedback);
+        //     std::this_thread::sleep_for(sleep_duration);
+        // }
+
+        //     result->success = true;
+        //     goal_handle->succeed(result);
+        //     RCLCPP_INFO(get_logger(), "Navigation succeeded");
+    }
+
+    // Calls the follow_path action with the given path; returns true if the action
+    // succeeded, false if not
+    bool follow_path(const std::vector<CellCoordinate> &path,
+        const std::shared_ptr<GoalHandleNavigateToGoal> navigate_goal_handle)
+    {
+        // Wait for follow_path action server
+        if (!_follow_path_client->wait_for_action_server(std::chrono::seconds(1))) 
+        {
+            RCLCPP_ERROR(get_logger(), "follow_path action server not available");
+            return false;
+        }
+
+        std::vector<CellCoordinateMsg> path_msg = convert_path(path);
+        auto goal = FollowPath::Goal();
+        goal.path = path_msg;
+
+        RCLCPP_INFO(get_logger(), "Calling follow_path action with calculated path");
+        auto accept_future = _follow_path_client->async_send_goal(goal);
+
+        // Wait for follow_path action goal to be received
+        if (accept_future.wait_for(std::chrono::seconds(1)) != std::future_status::ready) 
+        {
+            RCLCPP_ERROR(get_logger(), "Error sending follow_path goal: timeout");
+            return false;
+        }
+
+        // if (rclcpp::spin_until_future_complete(get_node_base_interface(), accept_future) !=
+        //     rclcpp::FutureReturnCode::SUCCESS)
+        // {
+        //     RCLCPP_ERROR(get_logger(), "Error sending follow_path goal");
+        //     return false;
+        // }
+
+        auto follow_path_goal_handle = accept_future.get();
+        if (!follow_path_goal_handle) 
+        {
+            RCLCPP_ERROR(get_logger(), "follow_path goal was rejected");
+            return false;
+        }
+
+        // Wait for follow_path action result
+        auto result_future = _follow_path_client->async_get_result(follow_path_goal_handle);
+
+        // Wait for follow_path action to complete
+        while (rclcpp::ok()) 
+        {
+            if (navigate_goal_handle->is_canceling()) 
+            {
+                RCLCPP_INFO(get_logger(), "navigate_to_goal action cancelled, cancelling follow_path goal");
+                _follow_path_client->async_cancel_goal(follow_path_goal_handle);
+                return false;
+            }
+
+            // Check if nested action completed
+            if (result_future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready) 
+            {
+                auto result = result_future.get();
+                if (result.code == rclcpp_action::ResultCode::SUCCEEDED) 
+                {
+                    RCLCPP_INFO(get_logger(), "follow_path action succeeded");
+                    return true;
+                } 
+                else 
+                {
+                    RCLCPP_ERROR(get_logger(), "follow_path action failed");
+                    return false;
+                }
+            }
+        }
+    }
+
+    static std::vector<CellCoordinateMsg> convert_path(const std::vector<CellCoordinate> &path)
+    {
+        std::vector<CellCoordinateMsg> pathMsg;
         for (CellCoordinate coord : path)
         {
-            geometry_msgs::msg::Pose pose;
-            pose.position.x = double(coord.x);
-            pose.position.y = double(coord.y);
-            feedback->distance_from_start = pose;
-            RCLCPP_INFO(get_logger(), "Publishing feedback pose (%f, %f)", pose.position.x, pose.position.y);
-            goal_handle->publish_feedback(feedback);
-            std::this_thread::sleep_for(sleep_duration);
+            CellCoordinateMsg coordMsg;
+            coordMsg.x = coord.x;
+            coordMsg.y = coord.y;
+            pathMsg.push_back(coordMsg);
         }
-
-        auto result = std::make_shared<NavigateToGoal::Result>();
-        if (path.back() != goal)
-        {
-            result->success = false;
-            goal_handle->abort(result);
-            RCLCPP_ERROR(get_logger(), "Navigation failed");
-        } 
-        else 
-        {
-            result->success = true;
-            goal_handle->succeed(result);
-            RCLCPP_INFO(get_logger(), "Navigation succeeded");
-        }
+        return pathMsg;
     }
 
     std::shared_ptr<plugin_base_classes::PathPlanner> _planner;
     rclcpp_action::Server<NavigateToGoal>::SharedPtr _navigate_server;
+    rclcpp_action::Client<FollowPath>::SharedPtr _follow_path_client;
     std::string _odom_topic;
 };  
 

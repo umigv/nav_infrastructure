@@ -121,7 +121,7 @@ private:
 
         // The poses we are passing to the controller are relative to the costmap, so 
         // set the origin to the absolute pose of the costmap origin
-        _pose_mgr.set_origin(costmap_origin_abs_pose(path.front()));
+        _pose_mgr.set_origin(calculate_costmap_origin_abs_pose(path.front()));
 
         rclcpp::Rate rate(_velocity_update_frequency);
         auto result = std::make_shared<FollowPath::Result>();
@@ -169,7 +169,7 @@ private:
     // at the given cell within the costmap
     // Also assumes resolution of costmap is 1 meter/cell; will need to either pass resolution
     // as part of action goal, or normalize path so resolution is always 1 meter/cell
-    Pose costmap_origin_abs_pose(CellCoordinate curr_cell)
+    Pose calculate_costmap_origin_abs_pose(CellCoordinate curr_cell)
     {
         Pose start_relative_pose = PoseManager::default_pose(); // Relative to costmap origin
         start_relative_pose.position.x = (double)curr_cell.x;
