@@ -18,6 +18,7 @@ namespace planner_server
 
 using namespace infra_common;
 using namespace infra_interfaces::msg;
+using namespace std::placeholders;
 
 using NavigateToGoal = infra_interfaces::action::NavigateToGoal;
 using GoalHandleNavigateToGoal = rclcpp_action::ServerGoalHandle<NavigateToGoal>;
@@ -157,30 +158,20 @@ private:
             return;
         }
 
-        bool navigation_success = follow_path(path, goal_handle);
-        if (!navigation_success)
-        {
-            RCLCPP_ERROR(get_logger(), "Failed to follow the calculated path");
-            result->success = false;
-            goal_handle->abort(result);
-            return;
-        }
-
-        RCLCPP_INFO(get_logger(), "Navigation succeeded");
-        result->success = true;
-        goal_handle->succeed(result);
+        follow_path(path, goal_handle);
     }
 
     // Calls the follow_path action with the given path; returns true if the action
     // succeeded, false if not
-    bool follow_path(const std::vector<CellCoordinate> &path,
+    void follow_path(const std::vector<CellCoordinate> &path,
         const std::shared_ptr<GoalHandleNavigateToGoal> navigate_goal_handle)
     {
         // Wait for follow_path action server
         if (!_follow_path_client->wait_for_action_server(std::chrono::seconds(1))) 
         {
             RCLCPP_ERROR(get_logger(), "follow_path action server not available");
-            return false;
+            navigation_failure(navigate_goal_handle);
+            return;
         }
 
         std::vector<CellCoordinateMsg> path_msg = convert_path(path);
@@ -188,50 +179,68 @@ private:
         goal.path = path_msg;
 
         RCLCPP_INFO(get_logger(), "Calling follow_path action with calculated path");
-        auto accept_future = _follow_path_client->async_send_goal(goal);
+        auto options = rclcpp_action::Client<FollowPath>::SendGoalOptions();
+        options.goal_response_callback =
+            std::bind(&PlannerServer::follow_path_goal_response_callback, this, _1, navigate_goal_handle);
+        options.result_callback =
+            std::bind(&PlannerServer::follow_path_result_callback, this, _1, navigate_goal_handle);
 
-        // Wait for follow_path action goal to be received
-        if (accept_future.wait_for(std::chrono::seconds(1)) != std::future_status::ready) 
-        {
-            RCLCPP_ERROR(get_logger(), "Error sending follow_path goal: timeout");
-            return false;
-        }
+        _follow_path_client->async_send_goal(goal, options);
+    }
 
-        auto follow_path_goal_handle = accept_future.get();
+    void follow_path_goal_response_callback(GoalHandleFollowPath::SharedPtr follow_path_goal_handle,
+        const std::shared_ptr<GoalHandleNavigateToGoal> navigate_goal_handle)
+    {
         if (!follow_path_goal_handle) 
         {
-            RCLCPP_ERROR(get_logger(), "follow_path goal was rejected");
-            return false;
-        }
-
-        // Wait for follow_path action result
-        auto result_future = _follow_path_client->async_get_result(follow_path_goal_handle);
-
-        // Wait for follow_path action to complete
-        while (rclcpp::ok()) 
+            RCLCPP_ERROR(this->get_logger(), "follow_path goal was rejected by server");
+            navigation_failure(navigate_goal_handle);
+        } 
+        else 
         {
-            if (navigate_goal_handle->is_canceling()) 
-            {
-                RCLCPP_INFO(get_logger(), "navigate_to_goal action cancelled, cancelling follow_path goal");
-                _follow_path_client->async_cancel_goal(follow_path_goal_handle);
-                return false;
-            }
+            RCLCPP_INFO(this->get_logger(), "follow_path goal accepted, waiting for result");
+        }
+    }
+  
+    void follow_path_result_callback(const GoalHandleFollowPath::WrappedResult &result, 
+        const std::shared_ptr<GoalHandleNavigateToGoal> navigate_goal_handle)
+    {
+        if (!check_follow_path_success(result))
+        {
+            navigation_failure(navigate_goal_handle);
+            return;
+        }
+        
+        auto navigate_result = std::make_shared<NavigateToGoal::Result>();
+        RCLCPP_INFO(get_logger(), "Navigation succeeded");
+        navigate_result->success = true;
+        navigate_goal_handle->succeed(navigate_result);
+    }
 
-            // Check if nested action completed
-            if (result_future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready) 
-            {
-                auto result = result_future.get();
-                if (result.code == rclcpp_action::ResultCode::SUCCEEDED) 
-                {
-                    RCLCPP_INFO(get_logger(), "follow_path action succeeded");
-                    return true;
-                } 
-                else 
-                {
-                    RCLCPP_ERROR(get_logger(), "follow_path action failed");
-                    return false;
-                }
-            }
+    void navigation_failure(const std::shared_ptr<GoalHandleNavigateToGoal> goal_handle)
+    {
+        RCLCPP_ERROR(get_logger(), "Failed to follow the calculated path");
+        auto result = std::make_shared<NavigateToGoal::Result>();
+        result->success = false;
+        goal_handle->abort(result);
+    }
+
+    bool check_follow_path_success(const GoalHandleFollowPath::WrappedResult &result)
+    {
+        switch (result.code) 
+        {
+        case rclcpp_action::ResultCode::SUCCEEDED:
+            RCLCPP_INFO(this->get_logger(), "follow_path goal succeeded");
+            return true;
+        case rclcpp_action::ResultCode::ABORTED:
+            RCLCPP_ERROR(this->get_logger(), "follow_path goal was aborted");
+            return false;
+        case rclcpp_action::ResultCode::CANCELED:
+            RCLCPP_ERROR(this->get_logger(), "follow_path goal was canceled");
+            return false;
+        default:
+            RCLCPP_ERROR(this->get_logger(), "follow_path resulted in unknown result code");
+            return false;
         }
     }
 
