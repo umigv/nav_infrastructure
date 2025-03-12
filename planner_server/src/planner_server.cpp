@@ -37,8 +37,9 @@ public:
         declare_parameter("isolate_path_planner", false);
         
         _isolate_path_planner = get_parameter("isolate_path_planner").as_bool();
+        RCLCPP_INFO(get_logger(), "Isolate path planner: %d", _isolate_path_planner);
         _odom_topic = get_parameter("odom_topic").as_string();
-        RCLCPP_INFO(get_logger(), "Odom topic is %s", _odom_topic.c_str());
+        RCLCPP_INFO(get_logger(), "Odom topic: %s", _odom_topic.c_str());
         std::string planner_plugin = get_parameter("planner_plugin").as_string();
         load_planner_plugin(planner_plugin);
 
