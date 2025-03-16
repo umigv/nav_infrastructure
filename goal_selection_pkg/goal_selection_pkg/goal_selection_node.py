@@ -19,19 +19,25 @@ class GoalSelectionService(Node):
         print("Goal Selection Node INIT")
         super().__init__('goal_selection_node')
 
+        # Action client for the NavigateToGoal action
+        self.action_client = ActionClient(self, NavigateToGoal, 'navigate_to_goal')
+
+
+        testingIntercept = True
+        if not testingIntercept:
+
         # Subscriber to /odom topic
-        qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=10
-        )
-        self.odom_sub = self.create_subscription(Odometry, '/odom', self.odom_callback, qos_profile)
-        self.current_orientation = None
+            qos_profile = QoSProfile(
+                reliability=ReliabilityPolicy.BEST_EFFORT,
+                history=HistoryPolicy.KEEP_LAST,
+                depth=10
+            )
+            self.odom_sub = self.create_subscription(Odometry, '/odom', self.odom_callback, qos_profile)
+            self.current_orientation = None
 
 
         # self.srv = self.create_service(GoalSelection, 'goal_selection_service', self.goal_selection_callback)
         self.cli = self.create_client(InflationGrid, 'inflation_grid_service')
-        self.action_client = ActionClient(self, NavigateToGoal, 'navigate_to_goal')
         print("Waiting for inflation_grid_service...")
         
         while not self.cli.wait_for_service(timeout_sec=1.0):
@@ -46,6 +52,7 @@ class GoalSelectionService(Node):
         self.current_orientation = msg.pose.pose.orientation
         self.get_logger().info(f"Current orientation: {self.current_orientation}")
 
+  
 
     def send_goal(self, starting_pose, new_goal, my_occgrid):
         """ Sends a goal to the NavigateToGoal action and waits for the result or feedback condition """
@@ -89,6 +96,13 @@ class GoalSelectionService(Node):
     def send_request(self):
 
         return self.cli.call_async(self.req)
+
+    def goal_testing_wrapper(self, grid_msg):
+        robot_pose_x, robot_pose_y = grid_msg.robot_pose_x, grid_msg.robot_pose_y
+
+        
+        return (robot_pose_x, robot_pose_y), (80,0), grid_msg.occupancy_grid
+
 
     def goal_selection_wrapper(self, grid_msg):
        
