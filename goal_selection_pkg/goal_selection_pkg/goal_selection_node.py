@@ -143,9 +143,10 @@ class GoalSelectionService(Node):
                       (-1, 1),   # Up-right (diagonal)
                       (0, -1),   # Left
                       (0, 1),
-                      (1,0),
-                      (1,1),
-                      (1,-1)]  
+                      #(1,0),     # testing BFS without moving down
+                      #(1,1),
+                      #(1,-1)
+                      ]  
 
         # directions = [(-1, -1),  # Up-left (diagonal)
         #             (-1, 1),
