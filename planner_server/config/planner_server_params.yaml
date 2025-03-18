@@ -1,5 +1,5 @@
 planner_server:
   ros__parameters:
-    planner_plugin: "planner_plugins::ExamplePlanner"
+    planner_plugin: "planner_plugins::StraightLinePlanner"
     odom_topic: "/odom"
-    isolate_path_planner: false # When set to true, planner_server doesn't call the follow_path action and instead publishes poses from the calculated path to the navigate_to_goal feedback topic
+    isolate_path_planner: false # When set to true, planner_server doesn't call the follow_path action and instead publishes poses from the calculated path to the navigate_to_goal feedback topic  

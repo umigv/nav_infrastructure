@@ -56,29 +56,57 @@ class GoalSelectionService(Node):
 
     def send_goal(self, starting_pose, new_goal, my_occgrid):
         """ Sends a goal to the NavigateToGoal action and waits for the result or feedback condition """
+        print("Sending Goal0")
+
         self.starting_pose = starting_pose[::-1]  # Reverse the order for the action server
         if not self.action_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error("NavigateToGoal action server not available!")
             return False
 
+        print("Sending Goal1")
+
         goal_msg = NavigateToGoal.Goal()
         goal_msg.costmap = my_occgrid
         
+        print("Sending Goal2")
+
         goal_msg.start = CellCoordinateMsg(x=starting_pose[0], y=starting_pose[1])
         goal_msg.goal = CellCoordinateMsg(x=new_goal[0], y=new_goal[1])
 
+        print("Sending Goal3")
+
         self.get_logger().info(f"Sending goal: start={starting_pose}, goal={new_goal}")
+
+        print("Sending Goal4")
+
         send_goal_future = self.action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
+
+        print("Sending Goal5")
+
         rclpy.spin_until_future_complete(self, send_goal_future)
+        print("Sending Goal6")
+
         goal_handle = send_goal_future.result()
+        print("Sending Goal7")
+
 
         if not goal_handle.accepted:
             self.get_logger().error("Goal rejected by the action server.")
             return False
 
+        print("Sending Goal8")
+
         get_result_future = goal_handle.get_result_async()
+
+        print("Sending Goal9")
+
+
         rclpy.spin_until_future_complete(self, get_result_future)
+
+        print("Sending Goal10")
+
         result = get_result_future.result()
+        print("Sending Goal11")
 
         return result.result.success
     
@@ -101,7 +129,7 @@ class GoalSelectionService(Node):
         robot_pose_x, robot_pose_y = grid_msg.robot_pose_x, grid_msg.robot_pose_y
 
         
-        return (robot_pose_x, robot_pose_y), (80,0), grid_msg.occupancy_grid
+        return (robot_pose_x, robot_pose_y), (10 ,78), grid_msg.occupancy_grid
 
 
     def goal_selection_wrapper(self, grid_msg):
@@ -165,7 +193,8 @@ def main():
     node = GoalSelectionService()
     
     try:
-        while rclpy.ok():
+        # while rclpy.ok():
+        for  i in range(1):
             print("Sending request")
             future = node.send_request()
             rclpy.spin_until_future_complete(node, future)
@@ -174,8 +203,9 @@ def main():
             if response:
                 print("Got a response")
                 print(response.robot_pose_x)
-                starting_pose, new_goal, my_occgrid = node.goal_selection_wrapper(response)
-
+                starting_pose, new_goal, my_occgrid = node.goal_testing_wrapper(response)
+                print("Sending Starting Pose: ", starting_pose)
+                print("Sending New Goal: ", new_goal)
                 success = node.send_goal(starting_pose[::-1], new_goal[::-1], my_occgrid)
 
                 if success:
@@ -195,5 +225,6 @@ def main():
     finally:
         node.destroy_node()
         rclpy.shutdown()
+
 if __name__ == '__main__':
     main()

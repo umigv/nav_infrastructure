@@ -1,11 +1,11 @@
 planner_server:
   ros__parameters:
-    planner_plugin: "planner_plugins::BfsPlanner"
+    planner_plugin: "planner_plugins::StraightLinePlanner"
     odom_topic: "/odom"
     isolate_path_planner: false # When set to true, planner_server doesn't call the follow_path action and instead publishes poses from the calculated path to the navigate_to_goal feedback topi
 controller_server:
   ros__parameters:
     controller_plugin: "controller_plugins::PurePursuitController"
     cmd_vel_topic: "/cmd_vel" # Must be of type geometry_msgs/Twist
-    odom_topic: "/odom" # Must be of type nav_msgs/Odometry
+    odom_topic: "/zed/zed_node/odom" # Must be of type nav_msgs/Odometry
     velocity_update_frequency: 0.5 # Seconds, time between querying controller plugin for next velocity

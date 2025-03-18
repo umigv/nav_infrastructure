@@ -4,7 +4,10 @@
 
 class OccupancyGridInflation : public rclcpp::Node {
 public:
+
     OccupancyGridInflation() : Node("occupancy_grid_inflation") {
+        std::cout << "HELLO" << std::endl;
+
         sub_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
             "/occupancy_grid", 10, std::bind(&OccupancyGridInflation::mapCallback, this, std::placeholders::_1));
         pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("/inflated_occ", 10);
@@ -24,7 +27,7 @@ private:
         auto inflated_grid = *msg;
         // inflateObstacles(inflated_grid, 17, 0.75);
         // pub_->publish(inflated_grid);
-        // std::cout << "got map update"    << std::endl;
+        std::cout << "got map update"    << std::endl;
         latest_grid_ = msg;
 
 

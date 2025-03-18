@@ -37,6 +37,7 @@ public:
         declare_parameter("cmd_vel_topic", "");
         declare_parameter("odom_topic", "");
         declare_parameter("velocity_update_frequency", 1.0);
+       
 
         std::string odom_topic = get_parameter("odom_topic").as_string();
         _odom_subscriber = create_subscription<nav_msgs::msg::Odometry>(odom_topic, 
@@ -85,6 +86,8 @@ private:
             abs_pose.position.x, 
             abs_pose.position.y, 
             abs_pose.position.z);
+        abs_pose.position.x = 78 * 0.05;
+        abs_pose.position.y = -55 * 0.05;
         _pose_mgr.update_absolute_pose(abs_pose);
     }
 
@@ -143,7 +146,13 @@ private:
                 break;
             }
 
-            Pose curr_relative_pose = _pose_mgr.get_relative_pose();
+            Pose curr_relative_pose;// = _pose_mgr.get_relative_pose();
+            curr_relative_pose.position.x = 78 * 0.05;
+            curr_relative_pose.position.y = -55 * 0.05;
+            RCLCPP_INFO(get_logger(), "Current odom pose: %f, %f, %f", 
+                curr_relative_pose.position.x, 
+                curr_relative_pose.position.y, 
+                curr_relative_pose.position.z);
             Twist cmd_vel = _controller->compute_next_command_velocity(curr_relative_pose, Twist());
             _cmd_vel_publisher->publish(cmd_vel);
 
@@ -160,6 +169,7 @@ private:
         std::vector<CellCoordinate> path;
         for (CellCoordinateMsg coord_msg : path_msg)
         {
+
             path.push_back({coord_msg.x, coord_msg.y});
         }
         return path;

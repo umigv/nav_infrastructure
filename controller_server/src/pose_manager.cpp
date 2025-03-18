@@ -2,6 +2,8 @@
 
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
+#include <iostream>
+
 PoseManager::PoseManager()
 {
     set_origin(default_pose());
@@ -11,6 +13,7 @@ PoseManager::PoseManager()
 void PoseManager::set_origin(const geometry_msgs::msg::Pose &pose)
 {
     std::lock_guard<std::mutex> lock(_mutex);
+    std::cout << "Setting origin to " << pose.position.x << ", " << pose.position.y << std::endl;
     _origin = pose;
 }
 
@@ -29,6 +32,7 @@ void PoseManager::update_absolute_pose(const geometry_msgs::msg::Pose &absolute_
 geometry_msgs::msg::Pose PoseManager::get_relative_pose()
 {
     std::lock_guard<std::mutex> lock(_mutex);
+    std::cout << "Calculating difference between " << _absolute_pose.position.x << ", " << _absolute_pose.position.y << " and " << _origin.position.x << ", " << _origin.position.y << std::endl;
     return pose_difference(_absolute_pose, _origin);
 }   
 
