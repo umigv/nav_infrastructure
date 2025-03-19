@@ -83,10 +83,10 @@ private:
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
     {
         Pose abs_pose = msg->pose.pose;
-        RCLCPP_INFO(get_logger(), "Received odometry message, updating absolute position to (%f, %f, %f)", 
-            abs_pose.position.x, 
-            abs_pose.position.y, 
-            abs_pose.position.z);
+        // RCLCPP_INFO(get_logger(), "Received odometry message, updating absolute position to (%f, %f, %f)", 
+        //     abs_pose.position.x, 
+        //     abs_pose.position.y, 
+        //     abs_pose.position.z);
         _pose_mgr.update_absolute_pose(abs_pose);
     }
 
@@ -149,14 +149,12 @@ private:
                 break;
             }
 
-            Pose curr_relative_pose;// = _pose_mgr.get_relative_pose();
-            curr_relative_pose.position.x = 78 * 0.05;
-            curr_relative_pose.position.y = -55 * 0.05;
-            RCLCPP_INFO(get_logger(), "Current odom pose: %f, %f, %f", 
-                curr_relative_pose.position.x, 
-                curr_relative_pose.position.y, 
-                curr_relative_pose.position.z);
-            Twist cmd_vel = _controller->compute_next_command_velocity(curr_relative_pose, Twist());
+            Pose curr_pose = _pose_mgr.get_relative_pose();
+            RCLCPP_INFO(get_logger(), "Passing pose to controller plugin: %f, %f, %f", 
+                curr_pose.position.x, 
+                curr_pose.position.y, 
+                curr_pose.position.z);
+            Twist cmd_vel = _controller->compute_next_command_velocity(curr_pose, Twist());
             _cmd_vel_publisher->publish(cmd_vel);
 
             // TODO: maybe publish feedback? 
