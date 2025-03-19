@@ -33,7 +33,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 install(
-  DIRECTORY config launch
+  DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
 )
 
