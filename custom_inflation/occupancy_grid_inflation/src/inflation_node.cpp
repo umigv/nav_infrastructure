@@ -67,8 +67,8 @@ private:
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 if (grid.data[y * width + x] > 50) { 
-                    for (int dy = -radius; dy <= radius; dy++) {
-                        for (int dx = -radius; dx <= radius; dx++) {
+                    for (int dy = std::ceil(-1.3*radius); dy <= std::floor(1.3*radius); dy++) {
+                        for (int dx = std::ceil(-.7*radius); dx <= std::floor(.7*radius); dx++) {
                             
                             int real_radius = std::sqrt(std::abs(dx) + std::abs(dy));
                             int new_value = int(grid.data[y * width + x])  * (std::pow(decrease_factor,real_radius)); 

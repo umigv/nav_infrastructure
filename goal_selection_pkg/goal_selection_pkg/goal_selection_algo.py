@@ -150,12 +150,12 @@ def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal
             ny, nx = y + dy, x + dx
             notNearTop = 2 <= ny < rows 
             notOutOfBounds = 0 <= ny < rows and 0 <= nx < cols
-            vaild_pixel = matrix[ny, nx] < 100 and matrix[ny, nx] > -1 
+            vaild_pixel = matrix[ny, nx] < 80 and matrix[ny, nx] > -1 
             if notNearTop and notOutOfBounds and vaild_pixel and (ny, nx) not in visited:
                 # Check all 8 surrounding pixels
                 # first condition: if the neighbor has y of 20 or less, do not queue.
                 #if this is weird, consider adding 1 back into dy in [-1, 0]
-                if all(14 <= ny + dy < rows and 0 <= nx + dx < cols and -1 < matrix[ny + dy, nx + dx] < 100 
+                if all(14 <= ny + dy < rows and 0 <= nx + dx < cols and -1 < matrix[ny + dy, nx + dx] < 80 
                     for dy in [-1, 0] for dx in [-1, 0, 1] if (dy, dx) != (0, 0)):
                     queue.append((ny, nx))
                     visited.add((ny, nx))
