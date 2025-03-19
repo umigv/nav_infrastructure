@@ -121,6 +121,7 @@ private:
     {
         auto action_goal = goal_handle->get_goal();
         Costmap costmap(action_goal->costmap);
+        double resolution = action_goal->costmap.info.resolution;
         CellCoordinateMsg startMsg = action_goal->start;
         CellCoordinateMsg goalMsg = action_goal->goal;
         CellCoordinate start = {startMsg.x, startMsg.y};
@@ -159,12 +160,13 @@ private:
             return;
         }
 
-        follow_path(path, goal_handle);
+        follow_path(path, resolution, goal_handle);
     }
 
     // Calls the follow_path action with the given path; returns true if the action
     // succeeded, false if not
     void follow_path(const std::vector<CellCoordinate> &path,
+        const double &resolution,
         const std::shared_ptr<GoalHandleNavigateToGoal> navigate_goal_handle)
     {
         // Wait for follow_path action server
@@ -178,6 +180,7 @@ private:
         std::vector<CellCoordinateMsg> path_msg = convert_path(path);
         auto goal = FollowPath::Goal();
         goal.path = path_msg;
+        goal.resolution = resolution;
 
         RCLCPP_INFO(get_logger(), "Calling follow_path action with calculated path");
         auto options = rclcpp_action::Client<FollowPath>::SendGoalOptions();

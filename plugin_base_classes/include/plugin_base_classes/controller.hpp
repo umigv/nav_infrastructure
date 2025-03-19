@@ -6,6 +6,7 @@
 #include "infra_common/cell_coordinate.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/pose.hpp"
+#include "geometry_msgs/msg/point.hpp"
 
 namespace plugin_base_classes
 {
@@ -13,7 +14,7 @@ namespace plugin_base_classes
 class Controller
 {
 public:
-    virtual void set_path(const std::vector<infra_common::CellCoordinate> &path) = 0;
+    virtual void set_path(const std::vector<geometry_msgs::msg::Point> &path) = 0;
 
     virtual geometry_msgs::msg::Twist compute_next_command_velocity(const geometry_msgs::msg::Pose &current_pose,
         const geometry_msgs::msg::Twist &current_velocity) = 0;

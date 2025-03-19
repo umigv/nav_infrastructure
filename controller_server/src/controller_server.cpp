@@ -4,6 +4,7 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/pose.hpp"
+#include "geometry_msgs/msg/point.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 #include "plugin_base_classes/controller.hpp"
@@ -24,7 +25,7 @@ using FollowPath = infra_interfaces::action::FollowPath;
 using GoalHandleFollowPath = rclcpp_action::ServerGoalHandle<FollowPath>;
 
 // Call follow_path action with command:
-// ros2 action send_goal /follow_path infra_interfaces/action/FollowPath "{path: [{x: 0, y: 0}, {x: 1, y: 1}]}"
+// ros2 action send_goal /follow_path infra_interfaces/action/FollowPath "{path: [{x: 0, y: 0}, {x: 1, y: 1}], resolution: 0.5}"
 
 class ControllerServer : public rclcpp::Node
 {
@@ -86,8 +87,6 @@ private:
             abs_pose.position.x, 
             abs_pose.position.y, 
             abs_pose.position.z);
-        abs_pose.position.x = 78 * 0.05;
-        abs_pose.position.y = -55 * 0.05;
         _pose_mgr.update_absolute_pose(abs_pose);
     }
 
@@ -119,12 +118,16 @@ private:
         RCLCPP_INFO(get_logger(), "Following path");
 
         auto goal = goal_handle->get_goal();
-        std::vector<CellCoordinate> path = convert_path(goal->path);
+        double resolution = goal->resolution;
+        std::vector<geometry_msgs::msg::Point> path = normalize_path(goal->path, resolution);
         _controller->set_path(path);
 
         // The poses we are passing to the controller are relative to the costmap, so 
         // set the origin to the absolute pose of the costmap origin
-        _pose_mgr.set_origin(calculate_costmap_origin_abs_pose(path.front()));
+        // _pose_mgr.set_origin(calculate_costmap_origin_abs_pose(path.front()));
+
+        // Using absolute poses, so origin is default pose
+        _pose_mgr.set_origin(PoseManager::default_pose());
 
         rclcpp::Rate rate(_velocity_update_frequency);
         auto result = std::make_shared<FollowPath::Result>();
@@ -164,13 +167,31 @@ private:
         goal_handle->succeed(result);
     }
 
-    static std::vector<CellCoordinate> convert_path(const std::vector<CellCoordinateMsg> &path_msg)
+    // Converts a given path with the given resolution to a path with resolution 1 meter/cell
+    std::vector<geometry_msgs::msg::Point> normalize_path(const std::vector<CellCoordinateMsg> &path_msg,
+        const double &resolution)
     {
-        std::vector<CellCoordinate> path;
+        // We are assuming the robot is currently located at the first cell in the path
+        Pose curr_abs_pose = _pose_mgr.get_absolute_pose();
+
+        // Distance in meters from the costmap origin
+        Pose curr_relative_pose = PoseManager::default_pose(); 
+        CellCoordinateMsg start_cell = path_msg.front();
+        curr_relative_pose.position.x = (double)start_cell.x * resolution;
+        curr_relative_pose.position.y = (double)start_cell.y * resolution;
+
+        // To transform path to absolute poses, add absolute pose of costmap origin to every point
+        Pose costmap_origin_abs_pose = PoseManager::pose_difference(curr_abs_pose, curr_relative_pose); // change to add
+
+        std::vector<geometry_msgs::msg::Point> path;
         for (CellCoordinateMsg coord_msg : path_msg)
         {
-
-            path.push_back({coord_msg.x, coord_msg.y});
+            // Add absolute pose of costmap origin to each point
+            geometry_msgs::msg::Point point;
+            point.x = coord_msg.x * resolution + costmap_origin_abs_pose.position.x;
+            point.y = coord_msg.y * resolution + costmap_origin_abs_pose.position.y;
+            point.z = 0;
+            path.push_back(point);
         }
         return path;
     }
