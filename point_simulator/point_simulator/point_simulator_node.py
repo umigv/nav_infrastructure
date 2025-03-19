@@ -23,15 +23,22 @@ class PointSimulator(Node):
         self.vx = 0.0
         self.vtheta = 0.0
         self.last_time = time.time()
+        self.last_cmd_time = time.time()
 
     def cmd_vel_callback(self, msg):
         self.vx = msg.linear.x
         self.vtheta = msg.angular.z
+        self.last_cmd_time = self.get_clock().now().nanoseconds 
 
     def update_position(self):
-        current_time = time.time()
-        dt = current_time - self.last_time
+        current_time = self.get_clock().now().nanoseconds
+        dt = (current_time - self.last_time) / 1e9  # Convert nanoseconds to seconds
         self.last_time = current_time
+
+        # Check if no cmd_vel was received recently (e.g., within 0.5 sec)
+        if current_time - self.last_cmd_time > 5e8:  # 0.5 seconds in nanoseconds
+            self.vx = 0.0
+            self.vtheta = 0.0  # Stop rotation to prevent drift
 
         # Update position
         self.x += self.vx * dt * cos(self.theta)

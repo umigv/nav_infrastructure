@@ -26,7 +26,7 @@ class TestMovement(Node):
 
         # Move backward
         elif self.step < 15:
-            cmd.linear.x = -0.5  # Move backward
+            cmd.linear.x = 0.5  # Move backward
             cmd.angular.z = 0.0
 
         # Turn right
@@ -50,4 +50,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-g
