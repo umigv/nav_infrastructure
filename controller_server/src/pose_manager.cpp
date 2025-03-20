@@ -7,38 +7,49 @@
 PoseManager::PoseManager()
 {
     set_origin(default_pose());
-    update_absolute_pose(default_pose());
 }
 
 void PoseManager::set_origin(const geometry_msgs::msg::Pose &pose)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_pose_lock);
     std::cout << "Setting origin to " << pose.position.x << ", " << pose.position.y << std::endl;
     _origin = pose;
 }
 
 void PoseManager::reset_origin()
 {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_pose_lock);
     _origin = default_pose();
 }
 
 void PoseManager::update_absolute_pose(const geometry_msgs::msg::Pose &absolute_pose)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_pose_lock);
+    if (!_initial_pose_set)
+    {
+        _initial_pose_set = true;
+        _pose_cv.notify_all();
+    }
     _absolute_pose = absolute_pose;
 }
 
 geometry_msgs::msg::Pose PoseManager::get_relative_pose()
 {
-    std::lock_guard<std::mutex> lock(_mutex);
-    std::cout << "Calculating difference between " << _absolute_pose.position.x << ", " << _absolute_pose.position.y << " and " << _origin.position.x << ", " << _origin.position.y << std::endl;
+    std::unique_lock<std::mutex> lock(_pose_lock);
+    if (!_initial_pose_set)
+    {
+        wait_for_pose_update(lock);
+    }
     return pose_difference(_absolute_pose, _origin);
 }   
 
 geometry_msgs::msg::Pose PoseManager::get_absolute_pose()
 {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::unique_lock<std::mutex> lock(_pose_lock);
+    if (!_initial_pose_set)
+    {
+        wait_for_pose_update(lock);
+    }
     return _absolute_pose;
 }
 
@@ -72,4 +83,9 @@ geometry_msgs::msg::Pose PoseManager::default_pose()
     pose.orientation.z = 0;
     pose.orientation.w = 1;
     return pose;
+}
+
+void PoseManager::wait_for_pose_update(std::unique_lock<std::mutex> &pose_lock) 
+{
+    _pose_cv.wait(pose_lock, [this] { return _initial_pose_set; });
 }
