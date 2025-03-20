@@ -129,7 +129,7 @@ private:
         // Using absolute poses, so origin is default pose
         _pose_mgr.set_origin(PoseManager::default_pose());
 
-        rclcpp::Rate rate(_velocity_update_frequency);
+        auto sleep_duration = std::chrono::milliseconds((int)(1000.0 * _velocity_update_frequency));
         auto result = std::make_shared<FollowPath::Result>();
         result->success = false;
         while (rclcpp::ok())
@@ -155,11 +155,18 @@ private:
                 curr_pose.position.y, 
                 curr_pose.position.z);
             Twist cmd_vel = _controller->compute_next_command_velocity(curr_pose, Twist());
+            RCLCPP_INFO(get_logger(), "Publishing command velocity: (%f, %f, %f), (%f, %f, %f)", 
+                cmd_vel.linear.x, 
+                cmd_vel.linear.y, 
+                cmd_vel.linear.z,
+                cmd_vel.angular.x, 
+                cmd_vel.angular.y, 
+                cmd_vel.angular.z);
             _cmd_vel_publisher->publish(cmd_vel);
 
             // TODO: maybe publish feedback? 
 
-            rate.sleep();
+            std::this_thread::sleep_for(sleep_duration);
         }
         
         goal_handle->succeed(result);
@@ -171,6 +178,10 @@ private:
     {
         // We are assuming the robot is currently located at the first cell in the path
         Pose curr_abs_pose = _pose_mgr.get_absolute_pose();
+        RCLCPP_INFO(get_logger(), "Normalizing path, current absolute pose: %f, %f, %f", 
+            curr_abs_pose.position.x, 
+            curr_abs_pose.position.y, 
+            curr_abs_pose.position.z);
 
         // Distance in meters from the costmap origin
         Pose curr_relative_pose = PoseManager::default_pose(); 
