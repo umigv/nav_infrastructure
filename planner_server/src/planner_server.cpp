@@ -124,8 +124,8 @@ private:
         double resolution = action_goal->costmap.info.resolution;
         CellCoordinateMsg startMsg = action_goal->start;
         CellCoordinateMsg goalMsg = action_goal->goal;
-        CellCoordinate start = {startMsg.x, startMsg.y};
-        CellCoordinate goal = {goalMsg.x, goalMsg.y};
+        CellCoordinate start = {(int)startMsg.x, (int)startMsg.y};
+        CellCoordinate goal = {(int)goalMsg.x, (int)goalMsg.y};
         RCLCPP_INFO(get_logger(), "Navigating from (%d, %d) to (%d, %d)", start.x, start.y, goal.x, goal.y);
 
         auto drivable = [](int cost) { return cost == 0; };
