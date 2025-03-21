@@ -178,7 +178,7 @@ private:
     {
         // We are assuming the robot is currently located at the first cell in the path
         Pose curr_abs_pose = _pose_mgr.get_absolute_pose();
-        RCLCPP_INFO(get_logger(), "Normalizing path, current absolute pose: %f, %f, %f", 
+        RCLCPP_INFO(get_logger(), "Normalizing path using current absolute pose: %f, %f, %f", 
             curr_abs_pose.position.x, 
             curr_abs_pose.position.y, 
             curr_abs_pose.position.z);
@@ -201,6 +201,9 @@ private:
             point.y = coord_msg.y * resolution + costmap_origin_abs_pose.position.y;
             point.z = 0;
             path.push_back(point);
+
+            RCLCPP_INFO(get_logger(), "\tPath cell coordinate: %d, %d", coord_msg.x, coord_msg.y);
+            RCLCPP_INFO(get_logger(), "\tPath absolute pose: %f, %f, %f", point.x, point.y, point.z);
         }
         return path;
     }
