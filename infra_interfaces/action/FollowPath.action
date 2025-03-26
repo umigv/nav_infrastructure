@@ -6,6 +6,3 @@ float32 resolution # meters/costmap unit, (1, 0) in costmap coords is (resolutio
 # Final output
 bool success
 ---
-
-# Feedback
-geometry_msgs/Pose distance_from_start
