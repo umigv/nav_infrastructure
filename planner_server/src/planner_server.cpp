@@ -33,13 +33,10 @@ public:
     : Node("planner_server")
     {
         declare_parameter("planner_plugin", "");
-        declare_parameter("odom_topic", "");
         declare_parameter("isolate_path_planner", false);
         
         _isolate_path_planner = get_parameter("isolate_path_planner").as_bool();
         RCLCPP_INFO(get_logger(), "Isolate path planner: %d", _isolate_path_planner);
-        _odom_topic = get_parameter("odom_topic").as_string();
-        RCLCPP_INFO(get_logger(), "Odom topic: %s", _odom_topic.c_str());
         std::string planner_plugin = get_parameter("planner_plugin").as_string();
         load_planner_plugin(planner_plugin);
 
@@ -289,7 +286,6 @@ private:
     std::shared_ptr<plugin_base_classes::PathPlanner> _planner;
     rclcpp_action::Server<NavigateToGoal>::SharedPtr _navigate_server;
     rclcpp_action::Client<FollowPath>::SharedPtr _follow_path_client;
-    std::string _odom_topic;
     bool _isolate_path_planner;
 };  
 
