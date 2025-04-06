@@ -5,13 +5,12 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/point.hpp"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 #include "plugin_base_classes/controller.hpp"
 #include "infra_interfaces/action/follow_path.hpp"
 #include "infra_interfaces/msg/cell_coordinate_msg.hpp"
 #include "infra_common/cell_coordinate.hpp"
-#include "controller_server/pose_manager.hpp"
+#include "infra_common/pose_manager.hpp"
 
 namespace controller_server
 {
@@ -38,7 +37,6 @@ public:
         declare_parameter("cmd_vel_topic", "");
         declare_parameter("odom_topic", "");
         declare_parameter("velocity_update_frequency", 1.0);
-       
 
         std::string odom_topic = get_parameter("odom_topic").as_string();
         _odom_subscriber = create_subscription<nav_msgs::msg::Odometry>(odom_topic, 
@@ -118,13 +116,7 @@ private:
         RCLCPP_INFO(get_logger(), "Following path");
 
         auto goal = goal_handle->get_goal();
-        double resolution = goal->resolution;
-        std::vector<geometry_msgs::msg::Point> path = normalize_path(goal->path, resolution);
-        _controller->set_path(path);
-
-        // The poses we are passing to the controller are relative to the costmap, so 
-        // set the origin to the absolute pose of the costmap origin
-        // _pose_mgr.set_origin(calculate_costmap_origin_abs_pose(path.front()));
+        _controller->set_path(goal->path);
 
         // Using absolute poses, so origin is default pose
         _pose_mgr.set_origin(PoseManager::default_pose());
@@ -170,57 +162,6 @@ private:
         }
         
         goal_handle->succeed(result);
-    }
-
-    // Converts a given path with the given resolution to a path with resolution 1 meter/cell
-    std::vector<geometry_msgs::msg::Point> normalize_path(const std::vector<CellCoordinateMsg> &path_msg,
-        const double &resolution)
-    {
-        // We are assuming the robot is currently located at the first cell in the path
-        Pose curr_abs_pose = _pose_mgr.get_absolute_pose();
-        RCLCPP_INFO(get_logger(), "Normalizing path using current absolute pose: %f, %f, %f", 
-            curr_abs_pose.position.x, 
-            curr_abs_pose.position.y, 
-            curr_abs_pose.position.z);
-
-        // Distance in meters from the costmap origin
-        Pose curr_relative_pose = PoseManager::default_pose(); 
-        CellCoordinateMsg start_cell = path_msg.front();
-        curr_relative_pose.position.x = (double)start_cell.x * resolution;
-        curr_relative_pose.position.y = (double)start_cell.y * resolution;
-
-        // To transform path to absolute poses, add absolute pose of costmap origin to every point
-        Pose costmap_origin_abs_pose = PoseManager::pose_difference(curr_abs_pose, curr_relative_pose); // change to add
-
-        std::vector<geometry_msgs::msg::Point> path;
-        for (CellCoordinateMsg coord_msg : path_msg)
-        {
-            // Add absolute pose of costmap origin to each point
-            geometry_msgs::msg::Point point;
-            point.x = coord_msg.x * resolution + costmap_origin_abs_pose.position.x;
-            point.y = coord_msg.y * resolution + costmap_origin_abs_pose.position.y;
-            point.z = 0;
-            path.push_back(point);
-
-            RCLCPP_INFO(get_logger(), "\tPath cell coordinate: %d, %d", coord_msg.x, coord_msg.y);
-            RCLCPP_INFO(get_logger(), "\tPath absolute pose: %f, %f, %f", point.x, point.y, point.z);
-        }
-        return path;
-    }
-
-    // Returns the absolute pose of the costmap origin; assumes the robot is currently located
-    // at the given cell within the costmap
-    // Also assumes resolution of costmap is 1 meter/cell; will need to either pass resolution
-    // as part of action goal, or normalize path so resolution is always 1 meter/cell
-    Pose calculate_costmap_origin_abs_pose(CellCoordinate curr_cell)
-    {
-        Pose start_relative_pose = PoseManager::default_pose(); // Relative to costmap origin
-        start_relative_pose.position.x = (double)curr_cell.x;
-        start_relative_pose.position.y = (double)curr_cell.y;
-
-        Pose start_abs_pose = _pose_mgr.get_absolute_pose();
-        Pose costmap_origin_abs_pose = PoseManager::pose_difference(start_abs_pose, start_relative_pose);
-        return costmap_origin_abs_pose;
     }
 
     std::shared_ptr<plugin_base_classes::Controller> _controller;

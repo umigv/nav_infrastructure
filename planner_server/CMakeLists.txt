@@ -14,9 +14,12 @@ find_package(rclcpp_action REQUIRED)
 find_package(infra_interfaces REQUIRED)
 find_package(plugin_base_classes REQUIRED)
 
+include_directories(include)
+
 # Create the executable for the actual ROS 2 node
 add_executable(planner_server 
-  src/planner_server.cpp)
+  src/planner_server.cpp
+)
 
 ament_target_dependencies(planner_server 
   rclcpp 
@@ -31,6 +34,11 @@ ament_target_dependencies(planner_server
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
 
 install(
   DIRECTORY launch
