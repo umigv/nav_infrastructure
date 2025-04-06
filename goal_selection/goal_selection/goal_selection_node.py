@@ -11,8 +11,21 @@ from geometry_msgs.msg import Pose
 import numpy as np
 import time
 from goal_selection.goal_selection_algo import *
-from goal_selection.waypoint_manager import WaypointManager
+from goal_selection.waypoint_manager import GPSWaypointManager
+from scipy.spatial.transform import Rotation
+from goal_selection.waypoint_manager import GPSCoordinate
 
+class RobotPose:
+    def __init__(self, x: float, y: float, yaw: float = 0.0):
+        """
+        x and y are in meters, yaw is in radians
+        """
+        self.x = x
+        self.y = y
+        self.yaw = yaw
+
+    def __repr__(self):
+        return f"(x={self.x}, y={self.y}, yaw={self.yaw})"
 
 class GoalSelectionNode(Node):
     def __init__(self):
@@ -34,7 +47,10 @@ class GoalSelectionNode(Node):
         self.get_logger().info(f"\tnavigation_retry_frequency: {navigation_retry_frequency}")
         self.get_logger().info(f"\twaypoints_file_name: {waypoints_file_name}")
 
-        self.waypoints_manager = WaypointManager(waypoints_file_name, self.get_logger())
+        self.waypoints_manager = GPSWaypointManager(waypoints_file_name, self.get_logger())
+        self.curr_gps_waypoint = self.waypoints_manager.get_next_waypoint()
+        self.curr_pose = None
+        self.curr_gps = None
 
         testingIntercept = True
         qos_profile = QoSProfile(
@@ -48,7 +64,6 @@ class GoalSelectionNode(Node):
                 '/odom', 
                 self.odom_callback, 
                 qos_profile)
-            self.current_orientation = None
 
         self.gps_coord_sub = self.create_subscription(
             NavSatFix, 
@@ -61,11 +76,24 @@ class GoalSelectionNode(Node):
         self.navigation_timer = self.create_timer(0.5, self.send_inflation_request)
 
     def odom_callback(self, msg):
-        self.current_orientation = msg.pose.pose.orientation
-        self.get_logger().info(f"Current orientation: {self.current_orientation}")
+        quat = msg.pose.pose.orientation
+        quat_scipy = [quat.x, quat.y, quat.z, quat.w]
+        r = Rotation.from_quat(quat_scipy)
+        euler_angles = r.as_euler('xyz')
+        curr_yaw = euler_angles[2] 
+        self.curr_pose = RobotPose(
+            x=msg.pose.pose.position.x,
+            y=msg.pose.pose.position.y,
+            yaw=curr_yaw
+        )
+        self.get_logger().info(f"Current pose: {self.curr_pose}")
 
     def gps_coord_callback(self, msg):
-        self.get_logger().info(f"GPS Coordinates received: {msg.latitude}, {msg.longitude}")
+        self.curr_gps = GPSCoordinate(
+            lat=msg.latitude,
+            lon=msg.longitude
+        )
+        self.get_logger().info(f"Current GPS coordinate: {self.curr_gps}")
 
     def restart_navigation(self):
         self.navigation_timer.reset()
