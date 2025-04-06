@@ -11,6 +11,7 @@ from geometry_msgs.msg import Pose
 import numpy as np
 import time
 from goal_selection.goal_selection_algo import *
+from goal_selection.waypoint_manager import WaypointManager
 
 
 class GoalSelectionNode(Node):
@@ -20,15 +21,20 @@ class GoalSelectionNode(Node):
         self.declare_parameter('odom_topic', '/odom')
         self.declare_parameter('gps_coords_topic', '/gps_coords')
         self.declare_parameter('navigation_retry_frequency', 0.5)
+        self.declare_parameter('waypoints_file_name', "waypoints.json")
 
         odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
         gps_coords_topic = self.get_parameter('gps_coords_topic').get_parameter_value().string_value
         navigation_retry_frequency = self.get_parameter('navigation_retry_frequency').get_parameter_value().double_value
+        waypoints_file_name = self.get_parameter('waypoints_file_name').get_parameter_value().string_value
         
         self.get_logger().info("Initializing goal selection node with following parameters: ")
         self.get_logger().info(f"\todom_topic: {odom_topic}")
         self.get_logger().info(f"\tgps_coords_topic: {gps_coords_topic}")
         self.get_logger().info(f"\tnavigation_retry_frequency: {navigation_retry_frequency}")
+        self.get_logger().info(f"\twaypoints_file_name: {waypoints_file_name}")
+
+        self.waypoints_manager = WaypointManager(waypoints_file_name, self.get_logger())
 
         testingIntercept = True
         qos_profile = QoSProfile(

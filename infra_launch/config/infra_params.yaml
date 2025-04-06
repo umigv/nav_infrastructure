@@ -13,3 +13,4 @@ goal_selection:
     odom_topic: "/odom" # Must be of type nav_msgs/Odometry
     gps_coords_topic: "/gps_coords" # Must be of type sensor_msgs/NavSatFix
     navigation_retry_frequency: 0.5 # Seconds, time between navigation success/failure and next navigation attempt
+    waypoints_file_name: "waypoints.json" # Assumed to be within goal_selection/config
