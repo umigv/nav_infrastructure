@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
-from nav_msgs.msg import Odometry
+from nav_msgs.msg import Odometry, NavSatFix
 from map_interfaces.srv import InflationGrid
 from infra_interfaces.action import NavigateToGoal
 from infra_interfaces.msg import CellCoordinateMsg
@@ -10,18 +10,19 @@ from geometry_msgs.msg import Pose
 import numpy as np
 import time
 from goal_selection_pkg.goal_selection_algo import *
+import os
+import threading
 
 
 # Function to check if a position is valid
 
 class GoalSelectionService(Node):
-    def __init__(self):
+    def __init__(self, file_path, radius = 5):
         print("Goal Selection Node INIT")
         super().__init__('goal_selection_node')
 
         # Action client for the NavigateToGoal action
         self.action_client = ActionClient(self, NavigateToGoal, 'navigate_to_goal')
-
 
         testingIntercept = True
         if not testingIntercept:
@@ -34,7 +35,14 @@ class GoalSelectionService(Node):
             )
             self.odom_sub = self.create_subscription(Odometry, '/odom', self.odom_callback, qos_profile)
             self.current_orientation = None
-
+            self.current_pose = None
+        
+        if not testingIntercept:
+            # FIX gps topic 
+            self.odom_sub = self.create_subscription(NavSatFix, '/gps', self.gps_callback, qos_profile)
+            self.radius = radius
+        
+        self.gps = None
 
         # self.srv = self.create_service(GoalSelection, 'goal_selection_service', self.goal_selection_callback)
         self.cli = self.create_client(InflationGrid, 'inflation_grid_service')
@@ -45,6 +53,11 @@ class GoalSelectionService(Node):
 
         self.req = InflationGrid.Request()
         print("Goal Selection Node INIT Completed")
+
+        self.thread = threading.Thread(target=self.queue_navigate(file_path))
+        self.thread.start()
+        
+        self.get_logger().info('Main queue thread is running.')
         # time.sleep(1)
         # print("make the request")
 
@@ -52,7 +65,50 @@ class GoalSelectionService(Node):
         self.current_orientation = msg.pose.pose.orientation
         self.get_logger().info(f"Current orientation: {self.current_orientation}")
 
-  
+    def gps_callback(self, msg):
+        self.gps = [msg.latitude, msg.longitude]
+        self.get_logger().info(f"Current gps: {self.gps}")
+
+    def queue_navigate(self, file_path, my_occgrid):
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        queue = deque()
+        with open(file_path, 'r', encoding='utf-8') as file:
+            for line in file:
+                values = line.split()
+                if len(values) == 2:
+                    try: 
+                        queue.put((float(values[0]), float(values[1])))
+                    except ValueError:
+                        print(f"Skipping invalid line: {line.strip()}")
+
+        # FIX assuming the odom and the quee file both gives pose in coordinate int system
+        if len(queue) == 0:
+            print(f"No queue provided")
+            return
+        
+        current = queue.pop()
+        while len(queue) != 0:
+            if not self.gps:
+                self.get_logger().warning('occupancy or current pose invalid')
+                rclpy.sleep(1)
+                continue
+            if np.sqrt(abs(current[0] - self.gps[0])**2 
+                    + abs(current[1] - self.gps[1])**2) < self.radius:
+                current = queue.pop()
+                continue
+            
+            # FIX loop condition
+            rclpy.sleep(1)
+        
+        self.get_logger().info('finished queue')
+
+    # FIX call when wants to destroy the the node along with the thread 
+    def destroy(self):
+        self.get_logger().info('Stopping worker thread.')
+        self.thread.join()
+        super().destroy_node()
 
     def send_goal(self, starting_pose, new_goal, my_occgrid):
         """ Sends a goal to the NavigateToGoal action and waits for the result or feedback condition """
