@@ -3,6 +3,7 @@ from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import NavSatFix
 from map_interfaces.srv import InflationGrid
 from infra_interfaces.action import NavigateToGoal
 from infra_interfaces.msg import CellCoordinateMsg
@@ -19,118 +20,75 @@ class GoalSelectionService(Node):
         print("Goal Selection Node INIT")
         super().__init__('goal_selection_node')
 
-        # Action client for the NavigateToGoal action
-        self.action_client = ActionClient(self, NavigateToGoal, 'navigate_to_goal')
-
+        self.navigate_client = ActionClient(self, NavigateToGoal, 'navigate_to_goal')
 
         testingIntercept = True
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10
+        )
         if not testingIntercept:
-
-        # Subscriber to /odom topic
-            qos_profile = QoSProfile(
-                reliability=ReliabilityPolicy.BEST_EFFORT,
-                history=HistoryPolicy.KEEP_LAST,
-                depth=10
-            )
-            self.odom_sub = self.create_subscription(Odometry, '/odom', self.odom_callback, qos_profile)
+            self.odom_sub = self.create_subscription(
+                Odometry, 
+                '/odom', 
+                self.odom_callback, 
+                qos_profile)
             self.current_orientation = None
 
+        self.gps_coord_sub = self.create_subscription(
+            NavSatFix, 
+            '/gps_coords', 
+            self.gps_coord_callback, 
+            qos_profile)
 
-        # self.srv = self.create_service(GoalSelection, 'goal_selection_service', self.goal_selection_callback)
-        self.cli = self.create_client(InflationGrid, 'inflation_grid_service')
-        print("Waiting for inflation_grid_service...")
-        
-        while not self.cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Waiting for inflation_grid_service...')
+        self.inflation_client = self.create_client(InflationGrid, 'inflation_grid_service')
 
-        self.req = InflationGrid.Request()
-        print("Goal Selection Node INIT Completed")
-        # time.sleep(1)
-        # print("make the request")
+        self.navigation_timer = self.create_timer(0.5, self.send_inflation_request)
 
     def odom_callback(self, msg):
         self.current_orientation = msg.pose.pose.orientation
         self.get_logger().info(f"Current orientation: {self.current_orientation}")
 
-  
+    def gps_coord_callback(self, msg):
+        self.get_logger().info(f"GPS Coordinates received: {msg.latitude}, {msg.longitude}")
 
-    def send_goal(self, starting_pose, new_goal, my_occgrid):
-        """ Sends a goal to the NavigateToGoal action and waits for the result or feedback condition """
-        print("Sending Goal0")
+    def restart_navigation(self):
+        self.navigation_timer.reset()
 
-        self.starting_pose = starting_pose[::-1]  # Reverse the order for the action server
-        if not self.action_client.wait_for_server(timeout_sec=5.0):
-            self.get_logger().error("NavigateToGoal action server not available!")
-            return False
+    def send_inflation_request(self):
+        """
+        Entry point into the navigation stack; begins the following process: 
+        1. Call inflation_grid_service to get the costmap
+        2. Execute goal selection algorithm to calculate a new goal
+        3. Call the navigate_to_goal action to move the robot to the goal
+        4. When goal is reached or failure occurs, repeat from step 1
+        """
+        # Will be restarted when navigation to a goal succeeds or an error occurs 
+        self.navigation_timer.cancel() 
 
-        print("Sending Goal1")
+        while not self.inflation_client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Waiting for inflation_grid_service...')
 
-        goal_msg = NavigateToGoal.Goal()
-        goal_msg.costmap = my_occgrid
-        
-        print("Sending Goal2")
+        self.get_logger().info("Sending inflation_grid_service request")
+        self.req = InflationGrid.Request()
+        future = self.inflation_client.call_async(self.req)
+        future.add_done_callback(self.inflation_response_callback)
 
-        goal_msg.start = CellCoordinateMsg(x=starting_pose[0], y=starting_pose[1])
-        goal_msg.goal = CellCoordinateMsg(x=new_goal[0], y=new_goal[1])
-
-        print("Sending Goal3")
-
-        self.get_logger().info(f"Sending goal: start={starting_pose}, goal={new_goal}")
-
-        print("Sending Goal4")
-
-        send_goal_future = self.action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
-
-        print("Sending Goal5")
-
-        rclpy.spin_until_future_complete(self, send_goal_future)
-        print("Sending Goal6")
-
-        goal_handle = send_goal_future.result()
-        print("Sending Goal7")
-
-
-        if not goal_handle.accepted:
-            self.get_logger().error("Goal rejected by the action server.")
-            return False
-
-        print("Sending Goal8")
-
-        get_result_future = goal_handle.get_result_async()
-
-        print("Sending Goal9")
-
-
-        rclpy.spin_until_future_complete(self, get_result_future)
-
-        print("Sending Goal10")
-
-        result = get_result_future.result()
-        print("Sending Goal11")
-
-        return result.result.success
-    
-    def feedback_callback(self, feedback_msg):
-        """ Process feedback from the action server """
-        pose = feedback_msg.feedback.distance_from_start
-        self.get_logger().info(f"Feedback received: Pose({pose.position.x}, {pose.position.y})")
-
-        # Stop if the pose is within 1.0 of the starting pose
-        if abs(pose.position.x - self.starting_pose[0]) <= 1.0 and abs(pose.position.y - self.starting_pose[1]) <= 1.0:
-            self.get_logger().info("Robot is within 1.0 of starting position, stopping...")
-            self.action_client.cancel_goal_async(self.goal_handle)
-
-    
-    def send_request(self):
-
-        return self.cli.call_async(self.req)
+    def inflation_response_callback(self, future):
+        try:
+            response = future.result()
+            self.get_logger().info('Received inflation grid response')
+            starting_pose, new_goal, my_occgrid = self.goal_testing_wrapper(response)
+            self.get_logger().info(f"Sending Starting Pose: {starting_pose} and Goal: {new_goal}")
+            self.send_navigate_goal(starting_pose[::-1], new_goal[::-1], my_occgrid)
+        except Exception as e:
+            self.get_logger().error(f'Exception while calling service: {e}')
+            self.restart_navigation()
 
     def goal_testing_wrapper(self, grid_msg):
         robot_pose_x, robot_pose_y = grid_msg.robot_pose_x, grid_msg.robot_pose_y
-
-        
         return (robot_pose_x, robot_pose_y), (10 ,78), grid_msg.occupancy_grid
-
 
     def goal_selection_wrapper(self, grid_msg):
        
@@ -187,38 +145,70 @@ class GoalSelectionService(Node):
 
         return (robot_pose_x, robot_pose_y), min_cost_cell, grid_msg.occupancy_grid
 
+    def send_navigate_goal(self, starting_pose, new_goal, my_occgrid):
+        """ Sends a goal to the NavigateToGoal action and waits for the result or feedback condition """
+
+        self.starting_pose = starting_pose[::-1]  # Reverse the order for the action server
+        if not self.navigate_client.wait_for_server(timeout_sec=5.0):
+            self.get_logger().error("NavigateToGoal action server not available!")
+            self.restart_navigation()
+            return
+
+        goal_msg = NavigateToGoal.Goal()
+        goal_msg.costmap = my_occgrid
+        goal_msg.start = CellCoordinateMsg(x=starting_pose[0], y=starting_pose[1])
+        goal_msg.goal = CellCoordinateMsg(x=new_goal[0], y=new_goal[1])
+
+        self.get_logger().info(f"Sending goal: start={starting_pose}, goal={new_goal}")
+
+        send_goal_future = self.navigate_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
+        send_goal_future.add_done_callback(self.navigate_to_goal_acceptance_callback)
+    
+    def feedback_callback(self, feedback_msg):
+        """ Process feedback from the action server """
+        pose = feedback_msg.feedback.distance_from_start
+        self.get_logger().info(f"Feedback received: Pose({pose.position.x}, {pose.position.y})")
+
+        # Stop if the pose is within 1.0 of the starting pose
+        if abs(pose.position.x - self.starting_pose[0]) <= 1.0 and abs(pose.position.y - self.starting_pose[1]) <= 1.0:
+            self.get_logger().info("Robot is within 1.0 of starting position, stopping...")
+            self.navigate_client.cancel_goal_async(self.goal_handle)
+
+    def navigate_to_goal_acceptance_callback(self, future):
+        try:
+            goal_handle = future.result()
+            
+            if not goal_handle.accepted:
+                self.get_logger().error('navigate_to_goal action goal rejected')
+                self.restart_navigation()
+                return
+                
+            self.get_logger().info('navigate_to_goal action goal accepted')
+            
+            future = goal_handle.get_result_async()
+            future.add_done_callback(self.navigate_to_goal_result_callback)
+        except Exception as e:
+            self.get_logger().error(f'Exception in navigate_to_goal_acceptance_callback: {e}')
+            self.restart_navigation()
+
+    def navigate_to_goal_result_callback(self, future):
+        try:
+            navigation_result = future.result().success
+            if navigation_result:
+                self.get_logger().info('Navigation to goal succeeded, continuing to next goal')
+            else:
+                self.get_logger().info('Navigation to goal failed, retrying')
+        except Exception as e:
+            self.get_logger().error(f'Exception in navigate_to_goal_result_callback: {e}')
+
+        self.restart_navigation()
 
 def main():
     rclpy.init()
     node = GoalSelectionService()
     
     try:
-        # while rclpy.ok():
-        for  i in range(1):
-            print("Sending request")
-            future = node.send_request()
-            rclpy.spin_until_future_complete(node, future)
-            response = future.result()
-            
-            if response:
-                print("Got a response")
-                print(response.robot_pose_x)
-                starting_pose, new_goal, my_occgrid = node.goal_testing_wrapper(response)
-                print("Sending Starting Pose: ", starting_pose)
-                print("Sending New Goal: ", new_goal)
-                success = node.send_goal(starting_pose[::-1], new_goal[::-1], my_occgrid)
-
-                if success:
-                    print("Navigation succeeded")
-                else:
-                    print("Navigation failed or stopped due to feedback conditions")
-
-            else:
-                print("No response received")
-            
-                time.sleep(3)  
-
-            time.sleep(10)
+        rclpy.spin(node)
     except KeyboardInterrupt:
         print("Shutting down...")
     
