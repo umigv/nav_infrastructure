@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'goal_selection_pkg'
+package_name = 'goal_selection'
 
 setup(
     name=package_name,
@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'goal_selection_node = goal_selection_pkg.goal_selection_node:main'
+            'goal_selection_node = goal_selection.goal_selection_node:main'
         ],
     },
 )
