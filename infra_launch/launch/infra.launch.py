@@ -30,8 +30,18 @@ def generate_launch_description():
         emulate_tty=True    
     )
 
+    goal_selection_node = Node(
+        package='goal_selection',
+        executable='goal_selection_node',
+        name='goal_selection',
+        parameters=params,
+        output='screen',    
+        emulate_tty=True    
+    )
+
     nodes = [
         planner_server_node,
-        controller_server_node 
+        controller_server_node,
+        goal_selection_node
     ]
     return LaunchDescription(nodes)

@@ -15,10 +15,20 @@ from goal_selection.goal_selection_algo import *
 
 class GoalSelectionNode(Node):
     def __init__(self):
-        print("Goal Selection Node INIT")
         super().__init__('goal_selection_node')
 
-        self.navigate_client = ActionClient(self, NavigateToGoal, 'navigate_to_goal')
+        self.declare_parameter('odom_topic', '/odom')
+        self.declare_parameter('gps_coords_topic', '/gps_coords')
+        self.declare_parameter('navigation_retry_frequency', 0.5)
+
+        odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
+        gps_coords_topic = self.get_parameter('gps_coords_topic').get_parameter_value().string_value
+        navigation_retry_frequency = self.get_parameter('navigation_retry_frequency').get_parameter_value().double_value
+        
+        self.get_logger().info("Initializing goal selection node with following parameters: ")
+        self.get_logger().info(f"\todom_topic: {odom_topic}")
+        self.get_logger().info(f"\tgps_coords_topic: {gps_coords_topic}")
+        self.get_logger().info(f"\tnavigation_retry_frequency: {navigation_retry_frequency}")
 
         testingIntercept = True
         qos_profile = QoSProfile(
@@ -41,7 +51,7 @@ class GoalSelectionNode(Node):
             qos_profile)
 
         self.inflation_client = self.create_client(InflationGrid, 'inflation_grid_service')
-
+        self.navigate_client = ActionClient(self, NavigateToGoal, 'navigate_to_goal')
         self.navigation_timer = self.create_timer(0.5, self.send_inflation_request)
 
     def odom_callback(self, msg):

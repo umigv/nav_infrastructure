@@ -16,6 +16,7 @@
   <depend>rosidl_runtime_py</depend>
   <depend>nav_msgs</depend>
   <depend>sensor_msgs</depend>
+  <depend>launch_ros</depend>
 
   <export>
     <build_type>ament_python</build_type>
