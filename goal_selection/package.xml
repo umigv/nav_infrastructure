@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>goal_selection_pkg</name>
+  <name>goal_selection</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
   <maintainer email="mdhuss413@gmail.com">maaz</maintainer>
@@ -14,7 +14,6 @@
 
   <depend>rclpy</depend>
   <depend>rosidl_runtime_py</depend>
-  <depend>inflation_pkg</depend>  <!-- Import the service from this package -->
   <depend>nav_msgs</depend>
   <depend>sensor_msgs</depend>
 

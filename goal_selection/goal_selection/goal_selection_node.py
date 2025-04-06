@@ -10,12 +10,10 @@ from infra_interfaces.msg import CellCoordinateMsg
 from geometry_msgs.msg import Pose
 import numpy as np
 import time
-from goal_selection_pkg.goal_selection_algo import *
+from goal_selection.goal_selection_algo import *
 
 
-# Function to check if a position is valid
-
-class GoalSelectionService(Node):
+class GoalSelectionNode(Node):
     def __init__(self):
         print("Goal Selection Node INIT")
         super().__init__('goal_selection_node')
@@ -205,7 +203,7 @@ class GoalSelectionService(Node):
 
 def main():
     rclpy.init()
-    node = GoalSelectionService()
+    node = GoalSelectionNode()
     
     try:
         rclpy.spin(node)
