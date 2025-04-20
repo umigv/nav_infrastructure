@@ -153,9 +153,9 @@ def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, r
 
 def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal_gps=0, robot_orientation=0, using_angle=False):
     # Calculate cost for this cell
-    current_gps = (42.668086, -83.218446) # TODO get this from sensors
-    goal_gps = (42.6679277, -83.2193276) # TODO get this from publisher
-    robot_orientation = math.radians(270) #TODO get this from sensors
+    # current_gps = (42.668086, -83.218446) # TODO get this from sensors
+    # goal_gps = (42.6679277, -83.2193276) # TODO get this from publisher
+    # robot_orientation = math.radians(270) #TODO get this from sensors
 
     # upper floor test  
     current_gps = (42.29464338650299,-83.70948627128159) # TODO get this from sensors

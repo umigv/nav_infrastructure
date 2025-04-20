@@ -121,7 +121,7 @@ class GoalSelectionNode(Node):
         try:
             response = future.result()
             self.get_logger().info('Received inflation grid response')
-            starting_pose, new_goal, my_occgrid = self.goal_testing_wrapper(response)
+            starting_pose, new_goal, my_occgrid = self.goal_testing_wrapper(response) # this supposed to be changed to goal selection wrapper?
             self.get_logger().info(f"Sending Starting Pose: {starting_pose} and Goal: {new_goal}")
             self.send_navigate_goal(starting_pose[::-1], new_goal[::-1], my_occgrid)
         except Exception as e:
@@ -180,9 +180,11 @@ class GoalSelectionNode(Node):
         #             (1,1),
         #             (1,-1)]   # Right
 
-
+        #this bfs should check if waypoint is in the provided matrix.
         start_bfs = (robot_pose_x - start_bfs_factor, robot_pose_y)  # Example offset for BFS start()
-        min_cost_cell, min_cost  = bfs_with_cost((robot_pose_x, robot_pose_y), matrix, start_bfs, directions, using_angle=node_using_angle)
+        min_cost_cell, min_cost  = bfs_with_cost((robot_pose_x, robot_pose_y), matrix, start_bfs, directions, 
+                                                 current_gps = self.curr_gps, goal_gps = self.curr_gps_waypoint, 
+                                                 robot_orientation = self.curr_pose.yaw, using_angle=node_using_angle)
         print("Cell with Minimum Cost: ", min_cost_cell, "Minimum Cost: ", min_cost)
 
         return (robot_pose_x, robot_pose_y), min_cost_cell, grid_msg.occupancy_grid
