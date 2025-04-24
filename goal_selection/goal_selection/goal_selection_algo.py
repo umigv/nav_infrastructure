@@ -70,12 +70,12 @@ def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, r
     if using_angle:
         angle_pen = get_angle_to_goal_pentaly(current, real_rob_pose, orientation, desire_heading)
 
-    y_start, x_start = start
-    y_current, x_current = current
+    x_start, y_start = start
+    x_current, y_current = current
     
     # Euclidean distance
     # euclidean_distance = (math.sqrt((x_current - x_start)**2 + (y_current - y_start)**2))
-    euclidean_distance = (3 * ((y_current - y_start) ** 2))
+    euclidean_distance = (3 * ((x_current - x_start) ** 2))
 
     # Ensure the distance is not zero when current == start
     if euclidean_distance == 0:
@@ -85,7 +85,9 @@ def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, r
     weighted_distance = distance_weight * euclidean_distance
 
     # Pull from inflation layer 
+    print("trying cell", (x_current, y_current), "cost", matrix[y_current][x_current])
     min_distance_to_obstacle = matrix[y_current][x_current]
+    print("matrix fin")
     
     # Edge penalty
     edge_penalty = min(x_current, cols - x_current - 1, y_current, rows - y_current - 1)
@@ -132,31 +134,43 @@ def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal
     # visualize_cost_map(goal_cost_matrx)
 
     while queue:
+        print("queue ")
         num_visted += 1
-        y, x = queue.pop() # pop for dfs pop left for bfs
+        x,y = queue.pop() # pop for dfs pop left for bfs
 
         d_heading = 0
         if using_angle:
             d_heading = find_desired_heading(current_gps, goal_gps, robot_orientation)
-        
-        cost = calculate_cost(robot_pose, robot_orientation, d_heading, start_bfs, (y, x), rows, cols, matrix, using_angle)
+        print("tring cell", (x,y))
+        print("x,y,rows,cols", x,y,rows,cols)
+        print("start bfs", start_bfs)
+        cost = calculate_cost(robot_pose, robot_orientation, d_heading, start_bfs, (x,y), rows, cols, matrix, using_angle)
         goal_cost_matrx[y][x] = cost
-        where_visted[y][x] = 1
+        where_visted[y][x] = cost
         if cost < min_cell_cost: 
             min_cell_cost = cost
-            best_cell = (y, x)
+            best_cell = (x,y)
         # Explore neighbors 
-        for dy, dx in directions:
-            ny, nx = y + dy, x + dx
-            notNearTop = 2 <= ny < rows 
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+            notNearTop = 2 <= nx < cols 
             notOutOfBounds = 0 <= ny < rows and 0 <= nx < cols
+            if not notOutOfBounds:
+                continue
+            print("trying vaild cell", (nx, ny))
             vaild_pixel = matrix[ny, nx] < 100 and matrix[ny, nx] > -1 
-            if notNearTop and notOutOfBounds and vaild_pixel and (ny, nx) not in visited:
+            print("notNearTop", notNearTop)
+            print("notOutOfBounds", notOutOfBounds)
+            print("vaild_pixel", vaild_pixel)
+            print("x y vistred", (nx, ny) not in visited)
+            print("nx,ny", nx, ny)
+            print("matrix[nx, ny]", matrix[ny, nx])
+            if notNearTop and notOutOfBounds and vaild_pixel and (nx, ny) not in visited:
                 # Check all 8 surrounding pixels
-                if all(0 <= ny + dy < rows and 0 <= nx + dx < cols and -1 < matrix[ny + dy, nx + dx] < 100 
-                    for dy in [-1, 0, 1] for dx in [-1, 0, 1] if (dy, dx) != (0, 0)):
-                    queue.append((ny, nx))
-                    visited.add((ny, nx))
+                # if all(0 <= ny + dy < rows and 0 <= nx + dx < cols and -1 < matrix[ny + dy, nx + dx] < 2000000 
+                #     for dy in [-1, 0, 1] for dx in [-1, 0, 1] if (dx, dy) != (0, 0)):
+                    queue.append((nx, ny))
+                    visited.add((nx, ny))
     # visualize_cost_map(where_visted)
     # visualize_cost_map(goal_cost_matrx)
     
@@ -176,7 +190,7 @@ def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal
 # Visualize the cost map
 def visualize_cost_map(cost_map):
     plt.figure(figsize=(10, 8))
-    plt.imshow(cost_map, cmap='viridis', origin='upper')
+    plt.imshow(cost_map, cmap='viridis', origin='lower')
     plt.colorbar(label='Cost')
     plt.title("Cost Heatmap")
     plt.xlabel("X-axis (Columns)")
@@ -190,12 +204,12 @@ def visualize_matrix_with_goal(matrix, start, goal):
     print(" GOAL ", goal)
     print(" START ", start)
     plt.figure(figsize=(8, 8))
-    plt.imshow(matrix, cmap="viridis") 
+    plt.imshow(matrix, cmap="viridis",  origin='lower') 
     plt.colorbar(label='Cost')
 
     # Mark start and goal points
-    plt.scatter(start[1], start[0], color="blue", label="Start", s=100)
-    plt.scatter(goal[1], goal[0], color="red", label="Goal", s=100)
+    plt.scatter(start[0], start[1], color="blue", label="Start", s=100)
+    plt.scatter(goal[0], goal[1], color="red", label="Goal", s=100)
 
     # Add grid for clarity
     plt.grid(color="black", linestyle="--", linewidth=0.5)

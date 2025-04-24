@@ -88,6 +88,7 @@ private:
         std::shared_ptr<const NavigateToGoal::Goal> goal)
     {
         RCLCPP_INFO(this->get_logger(), "Received goal request");
+
         (void)uuid;
 
         // Validate the action goal
@@ -96,7 +97,9 @@ private:
             Costmap costmap(goal->costmap);
             CellCoordinateMsg start = goal->start;
             CellCoordinateMsg goal_coord = goal->goal;
-
+            RCLCPP_INFO(this->get_logger(), "Start: (%d, %d)", start.x, start.y);
+            RCLCPP_INFO(this->get_logger(), "Goal: (%d, %d)", goal_coord.x, goal_coord.y);
+            RCLCPP_INFO(this->get_logger(), "Costmap width (for x) , height for (y): (%d, %d)", costmap.GetWidth(), costmap.GetHeight());
             if (start == goal_coord)
             {
                 RCLCPP_ERROR(this->get_logger(), "Start and goal coordinates are the same");
@@ -106,6 +109,7 @@ private:
             if (!costmap.InBounds(start.x, start.y) || !costmap.InBounds(goal_coord.x, goal_coord.y))
             {
                 RCLCPP_ERROR(this->get_logger(), "Start or goal coordinate is out of bounds");
+
                 return rclcpp_action::GoalResponse::REJECT;
             }
         }
@@ -143,10 +147,10 @@ private:
         CellCoordinate goal = {(int)goalMsg.x, (int)goalMsg.y};
         RCLCPP_INFO(get_logger(), "Navigating from (%d, %d) to (%d, %d)", start.x, start.y, goal.x, goal.y);
 
-        auto drivable = [](int cost) { return cost == 0; };
+        auto drivable = [](int cost) { return cost <= 100; };
         // Need to include start in this path
         std::vector<CellCoordinate> path = _planner->find_path(costmap, 
-            drivable,
+            drivable, 
             start,
             goal);
         
@@ -267,6 +271,9 @@ private:
         const double &resolution)
     {
         // We are assuming the robot is currently located at the first cell in the path
+
+        RCLCPP_INFO(get_logger(), "Normalizing path using resolution: %f", resolution);
+
         Pose curr_abs_pose = _pose_mgr.get_absolute_pose();
         RCLCPP_INFO(get_logger(), "Normalizing path using current absolute pose: %f, %f, %f", 
             curr_abs_pose.position.x, 

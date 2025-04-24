@@ -9,7 +9,7 @@ public:
         std::cout << "HELLO" << std::endl;
 
         sub_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
-            "/occupancy_grid", 10, std::bind(&OccupancyGridInflation::mapCallback, this, std::placeholders::_1));
+            "/test_occ", 10, std::bind(&OccupancyGridInflation::mapCallback, this, std::placeholders::_1));
         pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("/inflated_occ", 10);
 
         srv_ = this->create_service<map_interfaces::srv::InflationGrid>(
@@ -25,14 +25,12 @@ private:
     nav_msgs::msg::OccupancyGrid::SharedPtr latest_grid_;  // Store the latest received grid
     void mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
         auto inflated_grid = *msg;
-        // inflateObstacles(inflated_grid, 17, 0.75);
-        // pub_->publish(inflated_grid);
+        inflateObstacles(inflated_grid, 17, 0.75);
+        pub_->publish(inflated_grid);
         std::cout << "got map update"    << std::endl;
         latest_grid_ = msg;
 
-
     }
-
 
 
     void handleInflationRequest(
@@ -53,7 +51,7 @@ private:
         // pub_->publish(inflated_grid);  // Publish inflated map
 
         response->occupancy_grid = inflated_grid;
-        response->robot_pose_x = 55;  // Placeholder values
+        response->robot_pose_x = 20;  // Placeholder values
         response->robot_pose_y = 78;
         // response_promise.set_value(response);
         std::cout << "Received service given" << std::endl;

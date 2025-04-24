@@ -52,7 +52,7 @@ class GoalSelectionNode(Node):
         self.curr_pose = None
         self.curr_gps = None
 
-        testingIntercept = True
+        testingIntercept = False
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             history=HistoryPolicy.KEEP_LAST,
@@ -121,7 +121,7 @@ class GoalSelectionNode(Node):
         try:
             response = future.result()
             self.get_logger().info('Received inflation grid response')
-            starting_pose, new_goal, my_occgrid = self.goal_testing_wrapper(response)
+            starting_pose, new_goal, my_occgrid = self.goal_selection_wrapper(response)
             self.get_logger().info(f"Sending Starting Pose: {starting_pose} and Goal: {new_goal}")
             self.send_navigate_goal(starting_pose[::-1], new_goal[::-1], my_occgrid)
         except Exception as e:
@@ -138,10 +138,10 @@ class GoalSelectionNode(Node):
 
         robot_pose_x, robot_pose_y = grid_msg.robot_pose_x, grid_msg.robot_pose_y
         matrix = np.array(grid_msg.occupancy_grid.data).reshape((grid_msg.occupancy_grid.info.height, grid_msg.occupancy_grid.info.width))
-        matrix = np.flipud(matrix)
+        # matrix = np.flipud(matrix)
         # start_bfs = (47, 78)
         # robot_pose = (55, 78)
-        start_bfs_factor = 8 # we don't want to start the search from the robot's position (because its in unknown space) 
+        start_bfs_factor = 9 # we don't want to start the search from the robot's position (because its in unknown space) 
         # so shift the starting node this much "up"
         # print("Trying to visualize cost map")
         # visualize_cost_map(matrix)
@@ -179,13 +179,17 @@ class GoalSelectionNode(Node):
         #             (-1, 1),
         #             (1,1),
         #             (1,-1)]   # Right
+        print( "MMMM robot pose: ", robot_pose_x, robot_pose_y - 3)
 
-
-        start_bfs = (robot_pose_x - start_bfs_factor, robot_pose_y)  # Example offset for BFS start()
+        start_bfs = ( robot_pose_x + start_bfs_factor , robot_pose_y )  # Example offset for BFS start()
         min_cost_cell, min_cost  = bfs_with_cost((robot_pose_x, robot_pose_y), matrix, start_bfs, directions, using_angle=node_using_angle)
+        print("returned from bfs_with_cost")
         print("Cell with Minimum Cost: ", min_cost_cell, "Minimum Cost: ", min_cost)
+        print("WIDTH  ", grid_msg.occupancy_grid.info.width, "HEIGHT ", grid_msg.occupancy_grid.info.height)
+        grid_msg.occupancy_grid.info.resolution = 0.05
 
-        return (robot_pose_x, robot_pose_y), min_cost_cell, grid_msg.occupancy_grid
+        return (robot_pose_y, robot_pose_x), (min_cost_cell[1], min_cost_cell[0]), grid_msg.occupancy_grid
+
 
     def send_navigate_goal(self, starting_pose, new_goal, my_occgrid):
         """ Sends a goal to the NavigateToGoal action and waits for the result or feedback condition """
