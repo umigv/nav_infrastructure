@@ -28,7 +28,6 @@ using GoalHandleNavigateToGoal = rclcpp_action::ServerGoalHandle<NavigateToGoal>
 
 using FollowPath = infra_interfaces::action::FollowPath;
 using GoalHandleFollowPath = rclcpp_action::ClientGoalHandle<FollowPath>;
-
 class PlannerServer : public rclcpp::Node
 {
 public:
@@ -147,7 +146,7 @@ private:
         CellCoordinate goal = {(int)goalMsg.x, (int)goalMsg.y};
         RCLCPP_INFO(get_logger(), "Navigating from (%d, %d) to (%d, %d)", start.x, start.y, goal.x, goal.y);
 
-        auto drivable = [](int cost) { return cost <= 100; };
+        auto drivable = [](int cost) { return (cost < 100); };
         // Need to include start in this path
         std::vector<CellCoordinate> path = _planner->find_path(costmap, 
             drivable, 

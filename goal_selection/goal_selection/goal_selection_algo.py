@@ -67,6 +67,7 @@ def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, r
     # obs_factor = 1
     
     angle_pen = 0
+    # print("using angle", using_angle)
     if using_angle:
         angle_pen = get_angle_to_goal_pentaly(current, real_rob_pose, orientation, desire_heading)
 
@@ -74,7 +75,7 @@ def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, r
     x_current, y_current = current
     
     # Euclidean distance
-    # euclidean_distance = (math.sqrt((x_current - x_start)**2 + (y_current - y_start)**2))
+    euclidean_distance2 = (math.sqrt((x_current - x_start)**2 + (y_current - y_start)**2))
     euclidean_distance = (3 * ((x_current - x_start) ** 2))
 
     # Ensure the distance is not zero when current == start
@@ -85,9 +86,9 @@ def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, r
     weighted_distance = distance_weight * euclidean_distance
 
     # Pull from inflation layer 
-    print("trying cell", (x_current, y_current), "cost", matrix[y_current][x_current])
+    # print("trying cell", (x_current, y_current), "cost", matrix[y_current][x_current])
     min_distance_to_obstacle = matrix[y_current][x_current]
-    print("matrix fin")
+    # print("matrix fin")
     
     # Edge penalty
     edge_penalty = min(x_current, cols - x_current - 1, y_current, rows - y_current - 1)
@@ -95,7 +96,7 @@ def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, r
     
     close_pen = 0
     # Penalize if the current point is too close to the start
-    if euclidean_distance <= min_distance:
+    if euclidean_distance2 <= min_distance:
         close_pen += start_penalty_factor  # Add penalty to move away from the start
 
     # Final cost
@@ -130,23 +131,28 @@ def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal
     goal_cost_matrx = np.zeros_like(matrix, dtype=np.float64) + 100.0
 
     where_visted = np.zeros_like(matrix)
+    print("START BFS")
+    print(start_bfs)
+    where_visted[start_bfs[1]][start_bfs[0]] = 10;
+    print("START BFS2")
+
     num_visted = 0
     # visualize_cost_map(goal_cost_matrx)
 
     while queue:
-        print("queue ")
+        # print("queue ")
         num_visted += 1
         x,y = queue.pop() # pop for dfs pop left for bfs
 
         d_heading = 0
         if using_angle:
             d_heading = find_desired_heading(current_gps, goal_gps, robot_orientation)
-        print("tring cell", (x,y))
-        print("x,y,rows,cols", x,y,rows,cols)
-        print("start bfs", start_bfs)
+        # print("tring cell", (x,y))
+        # print("x,y,rows,cols", x,y,rows,cols)
+        # print("start bfs", start_bfs)
         cost = calculate_cost(robot_pose, robot_orientation, d_heading, start_bfs, (x,y), rows, cols, matrix, using_angle)
         goal_cost_matrx[y][x] = cost
-        where_visted[y][x] = cost
+        where_visted[y][x] = 1
         if cost < min_cell_cost: 
             min_cell_cost = cost
             best_cell = (x,y)
@@ -157,29 +163,29 @@ def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal
             notOutOfBounds = 0 <= ny < rows and 0 <= nx < cols
             if not notOutOfBounds:
                 continue
-            print("trying vaild cell", (nx, ny))
-            vaild_pixel = matrix[ny, nx] < 100 and matrix[ny, nx] > -1 
-            print("notNearTop", notNearTop)
-            print("notOutOfBounds", notOutOfBounds)
-            print("vaild_pixel", vaild_pixel)
-            print("x y vistred", (nx, ny) not in visited)
-            print("nx,ny", nx, ny)
-            print("matrix[nx, ny]", matrix[ny, nx])
+            # print("trying vaild cell", (nx, ny))
+            vaild_pixel = matrix[ny, nx] < 75 and matrix[ny, nx] > -1 
+            # print("notNearTop", notNearTop)
+            # print("notOutOfBounds", notOutOfBounds)
+            # print("vaield_pixel", vaild_pixel)
+            # print("x y vistred", (nx, ny) not in visited)
+            # print("nx,ny", nx, ny)
+            # print("matrix[nx, ny]", matrix[ny, nx])
             if notNearTop and notOutOfBounds and vaild_pixel and (nx, ny) not in visited:
                 # Check all 8 surrounding pixels
                 # if all(0 <= ny + dy < rows and 0 <= nx + dx < cols and -1 < matrix[ny + dy, nx + dx] < 2000000 
                 #     for dy in [-1, 0, 1] for dx in [-1, 0, 1] if (dx, dy) != (0, 0)):
                     queue.append((nx, ny))
                     visited.add((nx, ny))
-    # visualize_cost_map(where_visted)
+    
     # visualize_cost_map(goal_cost_matrx)
     
     print("BEST CELL", best_cell)
     print("BEST COST", min_cell_cost)
-
-    visualize_matrix_with_goal(goal_cost_matrx,robot_pose, best_cell) # fav print
-    print("Number of cells visited: ", num_visted)
     visualize_cost_map(where_visted)
+    visualize_matrix_with_goal(goal_cost_matrx,robot_pose, best_cell) # fav print
+    # print("Number of cells visited: ", num_visted)
+    # visualize_cost_map(where_visted)
     # max_value = np.max(goal_cost_matrx)
     # min_value = np.min(goal_cost_matrx)
 

@@ -141,7 +141,7 @@ class GoalSelectionNode(Node):
         # matrix = np.flipud(matrix)
         # start_bfs = (47, 78)
         # robot_pose = (55, 78)
-        start_bfs_factor = 9 # we don't want to start the search from the robot's position (because its in unknown space) 
+        start_bfs_factor = 15 # we don't want to start the search from the robot's position (because its in unknown space) 
         # so shift the starting node this much "up"
         # print("Trying to visualize cost map")
         # visualize_cost_map(matrix)
@@ -179,7 +179,7 @@ class GoalSelectionNode(Node):
         #             (-1, 1),
         #             (1,1),
         #             (1,-1)]   # Right
-        print( "MMMM robot pose: ", robot_pose_x, robot_pose_y - 3)
+        print( "MMMM robot pose: ", robot_pose_x, robot_pose_y)
 
         start_bfs = ( robot_pose_x + start_bfs_factor , robot_pose_y )  # Example offset for BFS start()
         min_cost_cell, min_cost  = bfs_with_cost((robot_pose_x, robot_pose_y), matrix, start_bfs, directions, using_angle=node_using_angle)
@@ -188,7 +188,7 @@ class GoalSelectionNode(Node):
         print("WIDTH  ", grid_msg.occupancy_grid.info.width, "HEIGHT ", grid_msg.occupancy_grid.info.height)
         grid_msg.occupancy_grid.info.resolution = 0.05
 
-        return (robot_pose_y, robot_pose_x), (min_cost_cell[1], min_cost_cell[0]), grid_msg.occupancy_grid
+        return (robot_pose_y , robot_pose_x ), (min_cost_cell[1], min_cost_cell[0]), grid_msg.occupancy_grid
 
 
     def send_navigate_goal(self, starting_pose, new_goal, my_occgrid):
@@ -246,7 +246,8 @@ class GoalSelectionNode(Node):
                 self.get_logger().info('Navigation to goal failed, retrying')
         except Exception as e:
             self.get_logger().error(f'Exception in navigate_to_goal_result_callback: {e}')
-
+        #add a timer to wait before restarting navigation
+        time.sleep(0.5 )
         self.restart_navigation()
 
 def main():
