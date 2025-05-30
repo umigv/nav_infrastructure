@@ -181,9 +181,11 @@ class GoalSelectionNode(Node):
         #             (1,-1)]   # Right
         print( "MMMM robot pose: ", robot_pose_x, robot_pose_y)
 
-        start_bfs = ( robot_pose_x + start_bfs_factor , robot_pose_y )  # Example offset for BFS start()
-        min_cost_cell, min_cost  = bfs_with_cost((robot_pose_x, robot_pose_y), matrix, start_bfs, directions, using_angle=node_using_angle)
-        print("returned from bfs_with_cost")
+        #this bfs should check if waypoint is in the provided matrix.
+        start_bfs = (robot_pose_x + start_bfs_factor, robot_pose_y)  # Example offset for BFS start()
+        min_cost_cell, min_cost  = bfs_with_cost((robot_pose_x, robot_pose_y), matrix, start_bfs, directions, 
+                                                 current_gps = self.curr_gps, goal_gps = self.curr_gps_waypoint, 
+                                                 robot_orientation = self.curr_pose.yaw, using_angle=node_using_angle)
         print("Cell with Minimum Cost: ", min_cost_cell, "Minimum Cost: ", min_cost)
         print("WIDTH  ", grid_msg.occupancy_grid.info.width, "HEIGHT ", grid_msg.occupancy_grid.info.height)
         grid_msg.occupancy_grid.info.resolution = 0.05
