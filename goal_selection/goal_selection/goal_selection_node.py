@@ -38,17 +38,18 @@ class GoalSelectionNode(Node):
 
         odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
         gps_coords_topic = self.get_parameter('gps_coords_topic').get_parameter_value().string_value
-        navigation_retry_frequency = self.get_parameter('navigation_retry_frequency').get_parameter_value().double_value
+        self.navigation_retry_frequency = self.get_parameter('navigation_retry_frequency').get_parameter_value().double_value
         waypoints_file_name = self.get_parameter('waypoints_file_name').get_parameter_value().string_value
         
         self.get_logger().info("Initializing goal selection node with following parameters: ")
         self.get_logger().info(f"\todom_topic: {odom_topic}")
         self.get_logger().info(f"\tgps_coords_topic: {gps_coords_topic}")
-        self.get_logger().info(f"\tnavigation_retry_frequency: {navigation_retry_frequency}")
+        self.get_logger().info(f"\tnavigation_retry_frequency: {self.navigation_retry_frequency}")
         self.get_logger().info(f"\twaypoints_file_name: {waypoints_file_name}")
 
         self.waypoints_manager = GPSWaypointManager(waypoints_file_name, self.get_logger())
         self.curr_gps_waypoint = self.waypoints_manager.get_next_waypoint()
+        self.get_logger().info(f"First GPS waypoint: {self.curr_gps_waypoint}")
         self.curr_pose = None
         self.curr_gps = None
 
@@ -61,13 +62,13 @@ class GoalSelectionNode(Node):
         if not testingIntercept:
             self.odom_sub = self.create_subscription(
                 Odometry, 
-                '/odom', 
+                odom_topic, 
                 self.odom_callback, 
                 qos_profile)
 
         self.gps_coord_sub = self.create_subscription(
             NavSatFix, 
-            '/gps_coords', 
+            gps_coords_topic, 
             self.gps_coord_callback, 
             qos_profile)
 
@@ -86,14 +87,14 @@ class GoalSelectionNode(Node):
             y=msg.pose.pose.position.y,
             yaw=curr_yaw
         )
-        self.get_logger().info(f"Current pose: {self.curr_pose}")
+        # self.get_logger().info(f"Current pose: {self.curr_pose}")
 
     def gps_coord_callback(self, msg):
         self.curr_gps = GPSCoordinate(
             lat=msg.latitude,
             lon=msg.longitude
         )
-        self.get_logger().info(f"Current GPS coordinate: {self.curr_gps}")
+        # self.get_logger().info(f"Current GPS coordinate: {self.curr_gps}")
 
     def restart_navigation(self):
         self.navigation_timer.reset()
@@ -121,9 +122,9 @@ class GoalSelectionNode(Node):
         try:
             response = future.result()
             self.get_logger().info('Received inflation grid response')
-            starting_pose, new_goal, my_occgrid = self.goal_selection_wrapper(response)
+            starting_pose, new_goal, my_occgrid, goal_is_waypoint = self.goal_selection_wrapper(response)
             self.get_logger().info(f"Sending Starting Pose: {starting_pose} and Goal: {new_goal}")
-            self.send_navigate_goal(starting_pose[::-1], new_goal[::-1], my_occgrid)
+            self.send_navigate_goal(starting_pose[::-1], new_goal[::-1], my_occgrid, goal_is_waypoint)
         except Exception as e:
             self.get_logger().error(f'Exception while calling service: {e}')
             self.restart_navigation()
@@ -144,13 +145,13 @@ class GoalSelectionNode(Node):
         start_bfs_factor = 15 # we don't want to start the search from the robot's position (because its in unknown space) 
         # so shift the starting node this much "up"
         # print("Trying to visualize cost map")
-        # visualize_cost_map(matrix)
+        visualize_cost_map(matrix)
         # print("Finished  to visualize cost map")
 
         node_using_angle = False # boolean to say whether to use the angle to waypoint in the cost function, set to false for now
 
-        print(np.sum(matrix))
-        print(matrix.shape)
+        print(f"Sum of costmap: {np.sum(matrix)}")
+        print(f"Shape of costmap: {matrix.shape}")
 
 
         np.set_printoptions(threshold=np.inf,linewidth=1000)
@@ -183,17 +184,22 @@ class GoalSelectionNode(Node):
 
         #this bfs should check if waypoint is in the provided matrix.
         start_bfs = (robot_pose_x + start_bfs_factor, robot_pose_y)  # Example offset for BFS start()
-        min_cost_cell, min_cost  = bfs_with_cost((robot_pose_x, robot_pose_y), matrix, start_bfs, directions, 
-                                                 current_gps = self.curr_gps, goal_gps = self.curr_gps_waypoint, 
-                                                 robot_orientation = self.curr_pose.yaw, using_angle=node_using_angle)
+        min_cost_cell, min_cost, cell_is_waypoint  = bfs_with_cost((robot_pose_x, robot_pose_y), 
+                                                 matrix, 
+                                                 start_bfs, 
+                                                 directions, 
+                                                 current_gps = self.curr_gps, 
+                                                 goal_gps = self.curr_gps_waypoint, 
+                                                 robot_orientation = self.curr_pose.yaw, 
+                                                 using_angle=node_using_angle)
         print("Cell with Minimum Cost: ", min_cost_cell, "Minimum Cost: ", min_cost)
         print("WIDTH  ", grid_msg.occupancy_grid.info.width, "HEIGHT ", grid_msg.occupancy_grid.info.height)
         grid_msg.occupancy_grid.info.resolution = 0.05
 
-        return (robot_pose_y , robot_pose_x ), (min_cost_cell[1], min_cost_cell[0]), grid_msg.occupancy_grid
+        return (robot_pose_y , robot_pose_x ), (min_cost_cell[1], min_cost_cell[0]), grid_msg.occupancy_grid, cell_is_waypoint
 
 
-    def send_navigate_goal(self, starting_pose, new_goal, my_occgrid):
+    def send_navigate_goal(self, starting_pose, new_goal, my_occgrid, goal_is_waypoint):
         """ Sends a goal to the NavigateToGoal action and waits for the result or feedback condition """
 
         self.starting_pose = starting_pose[::-1]  # Reverse the order for the action server
@@ -210,7 +216,11 @@ class GoalSelectionNode(Node):
         self.get_logger().info(f"Sending goal: start={starting_pose}, goal={new_goal}")
 
         send_goal_future = self.navigate_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
-        send_goal_future.add_done_callback(self.navigate_to_goal_acceptance_callback)
+
+        def navigate_to_goal_acceptance_callback(future):
+            self.navigate_to_goal_acceptance_callback(future, goal_is_waypoint)
+
+        send_goal_future.add_done_callback(navigate_to_goal_acceptance_callback)
     
     def feedback_callback(self, feedback_msg):
         """ Process feedback from the action server """
@@ -222,7 +232,7 @@ class GoalSelectionNode(Node):
             self.get_logger().info("Robot is within 1.0 of starting position, stopping...")
             self.navigate_client.cancel_goal_async(self.goal_handle)
 
-    def navigate_to_goal_acceptance_callback(self, future):
+    def navigate_to_goal_acceptance_callback(self, future, goal_is_waypoint):
         try:
             goal_handle = future.result()
             
@@ -234,22 +244,32 @@ class GoalSelectionNode(Node):
             self.get_logger().info('navigate_to_goal action goal accepted')
             
             future = goal_handle.get_result_async()
-            future.add_done_callback(self.navigate_to_goal_result_callback)
+
+            def navigate_to_goal_result_callback(future):
+                self.navigate_to_goal_result_callback(future, goal_is_waypoint)
+
+            future.add_done_callback(navigate_to_goal_result_callback)
         except Exception as e:
             self.get_logger().error(f'Exception in navigate_to_goal_acceptance_callback: {e}')
             self.restart_navigation()
 
-    def navigate_to_goal_result_callback(self, future):
+    def navigate_to_goal_result_callback(self, future, goal_is_waypoint):
         try:
-            navigation_result = future.result().success
+            navigation_result = future.result().result.success
             if navigation_result:
                 self.get_logger().info('Navigation to goal succeeded, continuing to next goal')
+                if goal_is_waypoint:
+                    self.curr_gps_waypoint = self.waypoints_manager.get_next_waypoint()
+                    self.get_logger().info(f'Reached waypoint, beginning navigation to next waypoint: {self.curr_gps_waypoint}')
+                    if self.curr_gps_waypoint is None:
+                        self.get_logger().info('No more waypoints available, stopping navigation')
+                        return
             else:
                 self.get_logger().info('Navigation to goal failed, retrying')
         except Exception as e:
             self.get_logger().error(f'Exception in navigate_to_goal_result_callback: {e}')
         #add a timer to wait before restarting navigation
-        time.sleep(0.5 )
+        time.sleep(self.navigation_retry_frequency)
         self.restart_navigation()
 
 def main():
