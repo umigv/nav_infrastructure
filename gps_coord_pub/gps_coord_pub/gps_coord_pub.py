@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 
-from sensor_msgs.msg import NavSatFix
+from sensor_msgs.msg import NavSatFix, MagneticField
 
 # pip install pyserial to get this package, not pip install serial
 from serial import Serial
@@ -14,7 +14,8 @@ class GPSCoordPublisher(Node):
         super().__init__('gps')
 
         # Create publisher instance
-        self.publisher_ = self.create_publisher(NavSatFix, 'gps_coords', 10)
+        self.coords_publisher_ = self.create_publisher(NavSatFix, 'gps_coords', 10)
+        self.heading_publisher = self.create_publisher(MagneticField, 'gps_heading', 10) # Debug purposes only
 
         # Set up publisher callback on a 1 second timer
         timer_period = 1  # seconds
@@ -54,7 +55,7 @@ class GPSCoordPublisher(Node):
         self.fix.position_covariance = [0.0] * 9
         self.fix.position_covariance_type = 0 
 
-        self.publisher_.publish(self.fix)
+        self.coords_publisher_.publish(self.fix)
 
 
     def publish_coords_debug(self):
@@ -70,7 +71,17 @@ class GPSCoordPublisher(Node):
         self.fix.position_covariance = [0.0] * 9
         self.fix.position_covariance_type = 0 
 
-        self.publisher_.publish(self.fix)
+        self.coords_publisher_.publish(self.fix)
+
+        heading_msg = MagneticField()
+        heading_msg.header.stamp = self.get_clock().now().to_msg()
+        heading_msg.header.frame_id = str(self.frame_id)
+        heading_msg.magnetic_field.x = 0.0
+        heading_msg.magnetic_field.y = 0.0
+        heading_msg.magnetic_field.z = 1.0
+        heading_msg.magnetic_field_covariance = [0.0] * 9
+        
+        self.heading_publisher.publish(heading_msg)
     
 
 def main(args=None):
