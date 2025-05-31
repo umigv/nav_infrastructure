@@ -19,31 +19,37 @@ def get_angle_difference(to_angle, from_angle):
     delta = (delta + math.pi) % (2 * math.pi) - math.pi
     return delta
 
-def find_desired_heading(robot_pose, goal_pose):
-    dx = goal_pose[0] - robot_pose[1]
-    dy = goal_pose[1] - robot_pose[1]
+def calculate_angle_to_goal(robot_pose, goal_pose):
+    """
+    Assuming robot is facing positive x direction 
+    Returns angle in radians of the goal pose relative to the robot's current position.
+    """
+    robot_x, robot_y = robot_pose
+    goal_x, goal_y = goal_pose
+    dx = goal_x - robot_x
+    dy = goal_y - robot_y
     heading = math.atan2(dy, dx)
     return heading
 
-def get_angle_to_goal_pentaly(canidate_node, real_robot_pos, orientation, desired_heading_global):
+def get_angle_to_goal_pentaly(canidate_node, real_robot_pos, robot_compass_heading, desired_heading_global):
     y,x = canidate_node
     outside_point_y, outside_point_x = real_robot_pos
     dx = x - outside_point_x
     dy = y - outside_point_y
-    cell_dir_local = math.atan2(dy, dx)  
+    cell_dir_local = calculate_angle_to_goal(real_robot_pos, canidate_node)
 
-    global_cell_dir = orientation + cell_dir_local + math.pi * 0.5
+    global_cell_dir = robot_compass_heading + cell_dir_local + math.pi * 0.5
 
     heading_error = abs(get_angle_difference(desired_heading_global, global_cell_dir))
     heading_error_deg = math.degrees(heading_error)
     return heading_error_deg
 
 #checks if the waypoint is in the CV frame. basically just the find_desired_heading, but with some extra math
-def waypoint_in_frame(cur_gps, goal_gps, orientation, matrix, robot_pose_in_costmap):
+def waypoint_in_frame(cur_gps, goal_gps, robot_compass_heading, matrix, robot_pose_in_costmap):
     waypoint_position = calculate_waypoint_frame_position(
         cur_gps=cur_gps, 
         goal_gps=goal_gps,
-        orientation=orientation,
+        robot_compass_heading=robot_compass_heading,
         robot_pose_in_costmap=robot_pose_in_costmap
     )
     i, j = waypoint_position
@@ -51,7 +57,7 @@ def waypoint_in_frame(cur_gps, goal_gps, orientation, matrix, robot_pose_in_cost
         return True
     return False
 
-def calculate_waypoint_frame_position(cur_gps, goal_gps, orientation, robot_pose_in_costmap):
+def calculate_waypoint_frame_position(cur_gps, goal_gps, robot_compass_heading, robot_pose_in_costmap):
     latitude_length = 111086.2  
     longitude_length = 81978.2  
     
@@ -62,8 +68,9 @@ def calculate_waypoint_frame_position(cur_gps, goal_gps, orientation, robot_pose
     east_m = delta_lon * longitude_length
     
     # Transform to robot body frame (forward = x, left = y)
-    forward_m = math.cos(orientation) * east_m + math.sin(orientation) * north_m
-    left_m = -math.sin(orientation) * east_m + math.cos(orientation) * north_m
+    # Assuming robot_compass_heading is in radians, and 0 radians is facing north
+    forward_m = math.sin(robot_compass_heading) * east_m + math.cos(robot_compass_heading) * north_m
+    left_m = -math.cos(robot_compass_heading) * east_m + math.sin(robot_compass_heading) * north_m
 
     resolution = 0.05  # meters/cell
     robot_i, robot_j = robot_pose_in_costmap  # Robot's position in costmap indices
@@ -81,7 +88,7 @@ def calculate_waypoint_frame_position(cur_gps, goal_gps, orientation, robot_pose
     #may also need a different way to set a new goal if the current one is within frame, but not driveable.
 
 
-def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, rows, cols, matrix, using_angle): 
+def calculate_cost(real_rob_pose, robot_compass_heading ,desire_heading, start, goal_candidate, rows, cols, matrix, using_angle): 
     edge_penalty_factor=.025
     distance_weight=.5
     min_distance=2
@@ -99,14 +106,14 @@ def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, r
     angle_pen = 0
     # print("using angle", using_angle)
     if using_angle:
-        angle_pen = get_angle_to_goal_pentaly(current, real_rob_pose, orientation, desire_heading)
+        angle_pen = get_angle_to_goal_pentaly(goal_candidate, real_rob_pose, robot_compass_heading, desire_heading)
 
     x_start, y_start = start
-    x_current, y_current = current
+    x_goal, y_goal = goal_candidate
     
     # Euclidean distance
-    euclidean_distance2 = (math.sqrt((x_current - x_start)**2 + (y_current - y_start)**2))
-    euclidean_distance = (3 * ((x_current - x_start) ** 2))
+    euclidean_distance2 = (math.sqrt((x_goal - x_start)**2 + (y_goal - y_start)**2))
+    euclidean_distance = (3 * ((x_goal - x_start) ** 2))
 
     # Ensure the distance is not zero when current == start
     if euclidean_distance == 0:
@@ -117,11 +124,11 @@ def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, r
 
     # Pull from inflation layer 
     # print("trying cell", (x_current, y_current), "cost", matrix[y_current][x_current])
-    min_distance_to_obstacle = matrix[y_current][x_current]
+    min_distance_to_obstacle = matrix[y_goal][x_goal]
     # print("matrix fin")
     
     # Edge penalty
-    edge_penalty = min(x_current, cols - x_current - 1, y_current, rows - y_current - 1)
+    edge_penalty = min(x_goal, cols - x_goal - 1, y_goal, rows - y_goal - 1)
     edge_penalty = max(0, edge_penalty)  # Ensure non-negative
     
     close_pen = 0
@@ -144,7 +151,8 @@ def bfs_with_cost(robot_pose,
                   directions, 
                   current_gps, 
                   goal_gps, 
-                  robot_orientation, 
+                  robot_orientation,
+                  robot_compass_heading, 
                   using_angle=False):
     """
     Returns the optimal goal cell, its cost, and whether the goal cell is a waypoint. 
@@ -169,9 +177,18 @@ def bfs_with_cost(robot_pose,
     visualize_cost_map(goal_cost_matrx)
 
     #if the waypoint is within frame, it is automatically the goal.
-    if waypoint_in_frame(current_gps, goal_gps, robot_orientation, matrix, robot_pose):
+    if waypoint_in_frame(current_gps, goal_gps, robot_compass_heading, matrix, robot_pose):
         waypoint = calculate_waypoint_frame_position(current_gps, goal_gps, robot_orientation, robot_pose)
-        return waypoint, calculate_cost(robot_pose, robot_orientation, d_heading, start_bfs, waypoint, rows, cols, matrix, using_angle), True
+        cost = calculate_cost(real_rob_pose=robot_pose,
+                              robot_compass_heading=robot_orientation,
+                              desire_heading=d_heading,
+                              start=start_bfs,
+                              goal_candidate=waypoint,
+                              rows=rows,
+                              cols=cols,
+                              matrix=matrix,
+                              using_angle=using_angle)
+        return waypoint, cost, True
 
     while queue:
         # print("queue ")
@@ -181,11 +198,11 @@ def bfs_with_cost(robot_pose,
         d_heading = 0
         if using_angle:
             waypoint = calculate_waypoint_frame_position(current_gps, goal_gps, robot_orientation, matrix, (y,x))
-            d_heading = find_desired_heading(robot_pose, waypoint)
+            d_heading = calculate_angle_to_goal(robot_pose, waypoint)
         # print("tring cell", (x,y))
         # print("x,y,rows,cols", x,y,rows,cols)
         # print("start bfs", start_bfs)
-        cost = calculate_cost(robot_pose, robot_orientation, d_heading, start_bfs, (x,y), rows, cols, matrix, using_angle)
+        cost = calculate_cost(robot_pose, robot_compass_heading, d_heading, start_bfs, (x,y), rows, cols, matrix, using_angle)
         goal_cost_matrx[y][x] = cost
         where_visted[y][x] = 1
         if cost < min_cell_cost: 

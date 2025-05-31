@@ -7,7 +7,7 @@ from sensor_msgs.msg import NavSatFix, MagneticField
 from map_interfaces.srv import InflationGrid
 from infra_interfaces.action import NavigateToGoal
 from infra_interfaces.msg import CellCoordinateMsg
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, Twist
 import numpy as np
 import time
 import math
@@ -15,6 +15,36 @@ from goal_selection.goal_selection_algo import *
 from goal_selection.waypoint_manager import GPSWaypointManager
 from scipy.spatial.transform import Rotation
 from goal_selection.waypoint_manager import GPSCoordinate
+
+LATITUDE_LENGTH = 111086.2  # meters per degree latitude
+LONGITUDE_LENGTH = 81978.2  # meters per degree longitude
+
+def calculate_rotation_to_waypoint(waypoint, curr_gps, curr_compass_heading):
+    dx = (waypoint.lon - curr_gps.lon) * LONGITUDE_LENGTH
+    dy = (waypoint.lat - curr_gps.lat) * LATITUDE_LENGTH
+
+    bearing = math.atan2(dx, dy)
+    bearing = (bearing + 2 * math.pi) % (2 * math.pi)
+
+    # get_logger().info(f"Desired bearing to waypoint: {bearing} radians")
+    # get_logger().info(f"Current compass heading: {curr_compass_heading} radians")
+
+    rotation_needed = bearing - curr_compass_heading
+
+    # Normalize the rotation to the range [-π, π]
+    if rotation_needed > math.pi:
+        rotation_needed -= 2 * math.pi
+    elif rotation_needed < -math.pi:
+        rotation_needed += 2 * math.pi
+
+    # get_logger().info(f"Rotation needed: {rotation_needed} radians")
+    return rotation_needed
+
+def calculate_distance_to_waypoint(waypoint, curr_gps):
+    dx = (waypoint.lon - curr_gps.lon) * LONGITUDE_LENGTH
+    dy = (waypoint.lat - curr_gps.lat) * LATITUDE_LENGTH
+
+    return math.sqrt(dx**2 + dy**2)
 
 class RobotPose:
     def __init__(self, x: float, y: float, yaw: float = 0.0):
@@ -37,12 +67,14 @@ class GoalSelectionNode(Node):
         self.declare_parameter('magnetometer_topic', '/imu/mag')
         self.declare_parameter('navigation_retry_frequency', 0.5)
         self.declare_parameter('waypoints_file_name', "waypoints.json")
+        self.declare_parameter('waypoint_qualification', False)
 
         odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
         gps_coords_topic = self.get_parameter('gps_coords_topic').get_parameter_value().string_value
         magnetometer_topic = self.get_parameter('magnetometer_topic').get_parameter_value().string_value
         self.navigation_retry_frequency = self.get_parameter('navigation_retry_frequency').get_parameter_value().double_value
         waypoints_file_name = self.get_parameter('waypoints_file_name').get_parameter_value().string_value
+        waypoint_qualification = self.get_parameter('waypoint_qualification').get_parameter_value().bool_value
         
         self.get_logger().info("Initializing goal selection node with following parameters: ")
         self.get_logger().info(f"\todom_topic: {odom_topic}")
@@ -58,18 +90,17 @@ class GoalSelectionNode(Node):
         self.curr_gps = None
         self.curr_compass_heading = None
 
-        testingIntercept = False
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             history=HistoryPolicy.KEEP_LAST,
             depth=10
         )
-        if not testingIntercept:
-            self.odom_sub = self.create_subscription(
-                Odometry, 
-                odom_topic, 
-                self.odom_callback, 
-                qos_profile)
+
+        self.odom_sub = self.create_subscription(
+            Odometry, 
+            odom_topic, 
+            self.odom_callback, 
+            qos_profile)
 
         self.gps_coord_sub = self.create_subscription(
             NavSatFix, 
@@ -83,6 +114,10 @@ class GoalSelectionNode(Node):
             self.mag_callback,
             qos_profile
         )
+        if waypoint_qualification:
+            self.waypoint_qual_timer = self.create_timer(0.1, self.waypoint_qualification_callback)
+            self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+            return
 
         self.inflation_client = self.create_client(InflationGrid, 'inflation_grid_service')
         self.navigate_client = ActionClient(self, NavigateToGoal, 'navigate_to_goal')
@@ -106,12 +141,47 @@ class GoalSelectionNode(Node):
             lat=msg.latitude,
             lon=msg.longitude
         )
-        # self.get_logger().info(f"Current GPS coordinate: {self.curr_gps}")
+        self.get_logger().info(f"Current GPS coordinate: {self.curr_gps}")
 
     def mag_callback(self, msg):
         # 0 radians is due north
         self.curr_compass_heading = math.atan2(msg.magnetic_field.y, msg.magnetic_field.x)
-        # self.get_logger().info(f"Current compass heading: {self.curr_compass_heading}")
+        self.get_logger().info(f"Current compass heading: {self.curr_compass_heading}")
+
+    def waypoint_qualification_callback(self):
+        if self.curr_gps is None or self.curr_compass_heading is None:
+            self.get_logger().warn("Waiting for GPS coordinate or compass heading to be available")
+            return
+        
+        rotation_tolerance = 0.1  # radians
+        dist_tolerance = 0.5 # meters
+        speed = 1.0
+        cmd_vel = Twist()
+        
+        dist_to_waypoint = calculate_distance_to_waypoint(self.curr_gps_waypoint, self.curr_gps)
+        if dist_to_waypoint < dist_tolerance:
+            self.get_logger().info(f"Reached waypoint")
+            self.waypoint_qual_timer.cancel()
+            self.cmd_vel_pub.publish(cmd_vel)  # Stop the robot
+            return
+
+        rotation_to_waypoint = calculate_rotation_to_waypoint(
+            self.curr_gps_waypoint, 
+            self.curr_gps, 
+            self.curr_compass_heading 
+        )
+
+        self.get_logger().info(f"Rotation needed: {rotation_to_waypoint} radians")
+
+        if abs(rotation_to_waypoint) < rotation_tolerance:
+            self.get_logger().info("Robot is facing the waypoint, moving forward")
+            cmd_vel.linear.x = speed
+        else:
+            self.get_logger().info("Robot is not facing the waypoint, rotating")
+            cmd_vel.angular.z = rotation_to_waypoint * speed
+
+        self.cmd_vel_pub.publish(cmd_vel)
+        self.get_logger().info(f"Published cmd_vel: linear.x={cmd_vel.linear.x}, angular.z={cmd_vel.angular.z}")
 
     def restart_navigation(self):
         self.navigation_timer.reset()
