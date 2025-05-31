@@ -86,14 +86,14 @@ class GoalSelectionNode(Node):
             y=msg.pose.pose.position.y,
             yaw=curr_yaw
         )
-        self.get_logger().info(f"Current pose: {self.curr_pose}")
+        # self.get_logger().info(f"Current pose: {self.curr_pose}")
 
     def gps_coord_callback(self, msg):
         self.curr_gps = GPSCoordinate(
             lat=msg.latitude,
             lon=msg.longitude
         )
-        self.get_logger().info(f"Current GPS coordinate: {self.curr_gps}")
+        # self.get_logger().info(f"Current GPS coordinate: {self.curr_gps}")
 
     def restart_navigation(self):
         self.navigation_timer.reset()
@@ -247,7 +247,7 @@ class GoalSelectionNode(Node):
         except Exception as e:
             self.get_logger().error(f'Exception in navigate_to_goal_result_callback: {e}')
         #add a timer to wait before restarting navigation
-        time.sleep(0.5 )
+        time.sleep(1.5)
         self.restart_navigation()
 
 def main():

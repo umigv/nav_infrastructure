@@ -101,7 +101,7 @@ def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, r
 
     # Final cost
    
-    cost = close_pen + 4*(1/(weighted_distance+1)) + obs_factor * min_distance_to_obstacle + edge_penalty_factor * (1 / (edge_penalty + 1)) + angle_pen * angle_pen_weight
+    cost = close_pen + 20*(1/(weighted_distance+1)) + obs_factor * min_distance_to_obstacle + edge_penalty_factor * (1 / (edge_penalty + 1)) + angle_pen * angle_pen_weight
    
     return cost
 

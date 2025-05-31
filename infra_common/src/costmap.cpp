@@ -1,5 +1,6 @@
 #include "infra_common/costmap.hpp"
-
+#include <string>
+#include <iostream>
 using namespace infra_common;
 
 Costmap::Costmap(const nav_msgs::msg::OccupancyGrid occupancy_grid_in)
@@ -15,8 +16,11 @@ int Costmap::GetCost(int x, int y) const
 {
     if (!InBounds(x, y))
     {
+        std::cout << "Out of range: " << x << ", " << y << "\n";
         throw std::out_of_range("Costmap::GetCost: out of range");
     }
+
+
     return _occupancy_grid.data[y * GetWidth() + x];
 }
 

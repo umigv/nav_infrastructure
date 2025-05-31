@@ -25,7 +25,7 @@ private:
     nav_msgs::msg::OccupancyGrid::SharedPtr latest_grid_;  // Store the latest received grid
     // void mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     //     auto inflated_grid = *msg;
-    //     inflateObstacles(inflated_grid, 17, 0.75);
+    //     // inflateObstacles(inflated_grid, 17, 0.75);
     //     pub_->publish(inflated_grid);
     //     std::cout << "got map update"    << std::endl;
     //     latest_grid_ = msg;
@@ -34,11 +34,13 @@ private:
 
     void mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
         nav_msgs::msg::OccupancyGrid inflated_grid = *msg;
-        inflateObstacles(inflated_grid, 10, 20, 0.9);
+        pub_->publish(inflated_grid);
+
+        inflateObstacles(inflated_grid, 10, 20, 0.9); // 10
         inflated_grid.header.frame_id = "odom";
         // inflated_grid.header.stamp = this->now();
-        inflated_grid.info.origin.position.x = -12 * inflated_grid.info.resolution;
-        inflated_grid.info.origin.position.y = -78 * inflated_grid.info.resolution;
+        inflated_grid.info.origin.position.x = -14 * inflated_grid.info.resolution;
+        inflated_grid.info.origin.position.y = -76 * inflated_grid.info.resolution;
         // inflated_grid.info.origin.position.z = 0;
         // inflated_grid.info.origin.orientation.x = 0;
         // inflated_grid.info.origin.orientation.y = 0;
@@ -47,7 +49,6 @@ private:
     
         RCLCPP_INFO(this->get_logger(), "Grid resolution: %f", inflated_grid.info.resolution);
         RCLCPP_INFO(this->get_logger(), "Grid width: %d, height: %d", inflated_grid.info.width, inflated_grid.info.height);
-        pub_->publish(inflated_grid);
         std::cout << "got map update"    << std::endl;
         latest_grid_ = msg;
 
@@ -74,7 +75,7 @@ private:
         // pub_->publish(inflated_grid);  // Publish inflated map
 
         response->occupancy_grid = inflated_grid;
-        response->robot_pose_x = 12;  // Placeholder values
+        response->robot_pose_x = 14;  // Placeholder values
         response->robot_pose_y = 76;
         // response_promise.set_value(response);
         std::cout << "Received service given" << std::endl;
