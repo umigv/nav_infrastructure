@@ -3,13 +3,14 @@ from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import NavSatFix
+from sensor_msgs.msg import NavSatFix, MagneticField
 from map_interfaces.srv import InflationGrid
 from infra_interfaces.action import NavigateToGoal
 from infra_interfaces.msg import CellCoordinateMsg
 from geometry_msgs.msg import Pose
 import numpy as np
 import time
+import math
 from goal_selection.goal_selection_algo import *
 from goal_selection.waypoint_manager import GPSWaypointManager
 from scipy.spatial.transform import Rotation
@@ -33,17 +34,20 @@ class GoalSelectionNode(Node):
 
         self.declare_parameter('odom_topic', '/odom')
         self.declare_parameter('gps_coords_topic', '/gps_coords')
+        self.declare_parameter('magnetometer_topic', '/imu/mag')
         self.declare_parameter('navigation_retry_frequency', 0.5)
         self.declare_parameter('waypoints_file_name', "waypoints.json")
 
         odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
         gps_coords_topic = self.get_parameter('gps_coords_topic').get_parameter_value().string_value
+        magnetometer_topic = self.get_parameter('magnetometer_topic').get_parameter_value().string_value
         self.navigation_retry_frequency = self.get_parameter('navigation_retry_frequency').get_parameter_value().double_value
         waypoints_file_name = self.get_parameter('waypoints_file_name').get_parameter_value().string_value
         
         self.get_logger().info("Initializing goal selection node with following parameters: ")
         self.get_logger().info(f"\todom_topic: {odom_topic}")
         self.get_logger().info(f"\tgps_coords_topic: {gps_coords_topic}")
+        self.get_logger().info(f"\tmagnetometer_topic: {magnetometer_topic}")
         self.get_logger().info(f"\tnavigation_retry_frequency: {self.navigation_retry_frequency}")
         self.get_logger().info(f"\twaypoints_file_name: {waypoints_file_name}")
 
@@ -52,6 +56,7 @@ class GoalSelectionNode(Node):
         self.get_logger().info(f"First GPS waypoint: {self.curr_gps_waypoint}")
         self.curr_pose = None
         self.curr_gps = None
+        self.curr_compass_heading = None
 
         testingIntercept = False
         qos_profile = QoSProfile(
@@ -71,6 +76,13 @@ class GoalSelectionNode(Node):
             gps_coords_topic, 
             self.gps_coord_callback, 
             qos_profile)
+        
+        self.mag_sub = self.create_subscription(
+            MagneticField,
+            magnetometer_topic,
+            self.mag_callback,
+            qos_profile
+        )
 
         self.inflation_client = self.create_client(InflationGrid, 'inflation_grid_service')
         self.navigate_client = ActionClient(self, NavigateToGoal, 'navigate_to_goal')
@@ -95,6 +107,11 @@ class GoalSelectionNode(Node):
             lon=msg.longitude
         )
         # self.get_logger().info(f"Current GPS coordinate: {self.curr_gps}")
+
+    def mag_callback(self, msg):
+        # 0 radians is due north
+        self.curr_compass_heading = math.atan2(msg.magnetic_field.y, msg.magnetic_field.x)
+        # self.get_logger().info(f"Current compass heading: {self.curr_compass_heading}")
 
     def restart_navigation(self):
         self.navigation_timer.reset()

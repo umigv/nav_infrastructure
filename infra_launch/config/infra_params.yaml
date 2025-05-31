@@ -13,5 +13,6 @@ goal_selection:
   ros__parameters:
     odom_topic: "/odom" # Must be of type nav_msgs/Odometry
     gps_coords_topic: "/gps_coords" # Must be of type sensor_msgs/NavSatFix
+    magnetometer_topic: "/imu/mag" # Must be of type sensor_msgs/MagneticField
     navigation_retry_frequency: 0.5 # Seconds, time between navigation success/failure and next navigation attempt
     waypoints_file_name: "waypoints.json" # Assumed to be within goal_selection/config

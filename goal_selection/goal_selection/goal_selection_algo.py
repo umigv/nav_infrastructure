@@ -147,19 +147,8 @@ def bfs_with_cost(robot_pose,
                   robot_orientation, 
                   using_angle=False):
     """
-    Returns the optimal goal cell, its cost, and whether that cell is a waypoint. 
+    Returns the optimal goal cell, its cost, and whether the goal cell is a waypoint. 
     """
-    # Calculate cost for this cell
-    # current_gps = (42.668086, -83.218446) # TODO get this from sensors
-    # goal_gps = (42.6679277, -83.2193276) # TODO get this from publisher
-    # robot_orientation = math.radians(270) #TODO get this from sensors
-
-    # upper floor test  
-    # current_gps = (42.29464338650299,-83.70948627128159) # TODO get this from sensors
-    # goal_gps = (42.29464338650299,-83.70939437630648) # TODO get this from publisher
-    # robot_orientation = math.radians(69) #TODO get this from sensors
-    # using_angle = False
-
     rows, cols = matrix.shape
     visited = set()
     queue = deque([start_bfs])
