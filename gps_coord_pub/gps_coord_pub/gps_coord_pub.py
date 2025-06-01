@@ -19,7 +19,7 @@ class GPSCoordPublisher(Node):
 
         # Set up publisher callback on a 1 second timer
         timer_period = 1  # seconds
-        self.timer = self.create_timer(timer_period, self.publish_coords_debug)
+        self.timer = self.create_timer(timer_period, self.publish_coords)
 
         # Set up message
         self.fix = NavSatFix()
@@ -42,10 +42,12 @@ class GPSCoordPublisher(Node):
         # Put information into NavSatFix`` msg type
         try:
             if parsed_data.status == 'V':
+                print("GPS data is invalid, skipping publish.")
                 return
         except:
             return
         
+
         self.fix.header.stamp = self.get_clock().now().to_msg()
         self.fix.header.frame_id = str(self.frame_id)
         self.fix.status.service = 1
