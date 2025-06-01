@@ -19,35 +19,6 @@ from goal_selection.waypoint_manager import GPSCoordinate
 LATITUDE_LENGTH = 111086.2  # meters per degree latitude
 LONGITUDE_LENGTH = 81978.2  # meters per degree longitude
 
-def calculate_rotation_to_waypoint(waypoint, curr_gps, curr_compass_heading):
-    dx = (waypoint.lon - curr_gps.lon) * LONGITUDE_LENGTH
-    dy = (waypoint.lat - curr_gps.lat) * LATITUDE_LENGTH
-
-    bearing = math.atan2(dx, dy)
-    bearing = (bearing + (2 * math.pi)) % (2 * math.pi)
-
-    # get_logger().info(f"Desired bearing to waypoint: {bearing} radians")
-    # get_logger().info(f"Current compass heading: {curr_compass_heading} radians")
-
-    #just switched this to be current compass heading - bearing, bc that should decrease the error.
-    rotation_needed = curr_compass_heading - bearing
-
-    # Normalize the rotation to the range [-π, π]
-    # if rotation_needed > math.pi:
-    #     rotation_needed -= 2 * math.pi
-    #will this ever happen?
-    # elif rotation_needed < -math.pi:
-    #     rotation_needed += 2 * math.pi
-
-    # get_logger().info(f"Rotation needed: {rotation_needed} radians")
-    return rotation_needed
-
-def calculate_distance_to_waypoint(waypoint, curr_gps):
-    dx = (waypoint.lon - curr_gps.lon) * LONGITUDE_LENGTH
-    dy = (waypoint.lat - curr_gps.lat) * LATITUDE_LENGTH
-
-    return math.sqrt(dx**2 + dy**2)
-
 class RobotPose:
     def __init__(self, x: float, y: float, yaw: float = 0.0):
         """
@@ -147,9 +118,9 @@ class GoalSelectionNode(Node):
         # self.get_logger().info(f"Current GPS coordinate: {self.curr_gps}")
 
     def mag_callback(self, msg):
-        # 0 radians is due north
+        # 0 radians is due north, need to verify this
         self.curr_compass_heading = math.atan2(msg.magnetic_field.y, msg.magnetic_field.x)
-        self.get_logger().info(f"Current compass heading: {self.curr_compass_heading}")
+        self.curr_compass_heading = (self.curr_compass_heading + (2 * math.pi)) % (2 * math.pi)
 
     def waypoint_qualification_callback(self):
         if self.curr_gps is None or self.curr_compass_heading is None:
@@ -160,11 +131,9 @@ class GoalSelectionNode(Node):
         dist_tolerance = 0.75 # meters
         linear_speed = 0.5
         ang_speed = 0.1
-        self.get_logger().info(f"Linear speed: {linear_speed}, Angular speed: {ang_speed}")
         cmd_vel = Twist()
-        cmd_vel.angular.z = 0.001
 
-        dist_to_waypoint = calculate_distance_to_waypoint(self.curr_gps_waypoint, self.curr_gps)
+        dist_to_waypoint = self.calculate_distance_to_waypoint(self.curr_gps_waypoint, self.curr_gps)
         self.get_logger().info(f"Distance to waypoint: {dist_to_waypoint} meters")
         if dist_to_waypoint < dist_tolerance:
             self.get_logger().info(f"Reached waypoint")
@@ -172,74 +141,64 @@ class GoalSelectionNode(Node):
             self.cmd_vel_pub.publish(cmd_vel)  # Stop the robot
             return
 
-        rotation_to_waypoint = calculate_rotation_to_waypoint(
-            self.curr_gps_waypoint, 
-            self.curr_gps, 
-            self.curr_compass_heading 
+        self.get_logger().info(f"Current compass heading: {self.curr_compass_heading}")
+        rotation_to_waypoint = self.calculate_rotation_to_waypoint(
+            waypoint=self.curr_gps_waypoint, 
+            curr_gps=self.curr_gps, 
+            curr_compass_heading=self.curr_compass_heading 
         )
-
         self.get_logger().info(f"Rotation needed: {rotation_to_waypoint} radians")
 
         if abs(rotation_to_waypoint) < rotation_tolerance:
             self.get_logger().info("Robot is facing the waypoint, moving forward")
             cmd_vel.linear.x = linear_speed
         else:
-            self.get_logger().info("HERE Robot is not facing the waypoint, rotating")
+            self.get_logger().info("Robot is not facing the waypoint, rotating")
             #Caitlyn: what is the point of having the positive-negative switch here? If the current heading is greater thatn the desired, the rotation_to_waypoint should be negative. Something to consider changing.
             #I think the changes made to calculate_rotation_to_waypoint should fix the issue on their own, but if not, try swapping the signs on sen.
-            sen =-1
-            if rotation_to_waypoint > 0:
-                sen = 1
+            ang_dir = 1 if rotation_to_waypoint > 0 else -1
             
             #Caitlyn: just using the output from calculate_rotation_to_waypoint multiplied by a smaller angular velocity constant should make this a p-controller, no?
-            ang_dir = rotation_to_waypoint #sen
-            self.get_logger().info(f"Rdirrr: {ang_dir} radians")
-            self.get_logger().info(f"Rdirrr: {ang_speed} radians")
 
-            cmd_vel.angular.z = ang_dir * ang_speed/5 #Caitlyn: made the angular speed smaller to account for  larger ang_dir values
+            cmd_vel.angular.z = ang_dir * ang_speed
 
         self.cmd_vel_pub.publish(cmd_vel)
         self.get_logger().info(f"Published cmd_vel: linear.x={cmd_vel.linear.x}, angular.z={cmd_vel.angular.z}")
+
+    def calculate_rotation_to_waypoint(self, waypoint, curr_gps, curr_compass_heading):
+        east_distance = (waypoint.lon - curr_gps.lon) * LONGITUDE_LENGTH
+        north_distance = (waypoint.lat - curr_gps.lat) * LATITUDE_LENGTH
+
+        # If we confirm that due north is 0 radians, this is correct
+        waypoint_heading = math.atan2(east_distance, north_distance) # Will be within [-pi, pi] radians, takes into account quadrant
+
+        # Shouldn't need to normalize, negative angles are ok
+        # waypoint_heading = (waypoint_heading + (2 * math.pi)) % (2 * math.pi) 
+
+        self.get_logger().info(f"Waypoint heading: {waypoint_heading} radians")
+
+        # curr + needed = waypoint
+        # needed = waypoint - curr
+        rotation_needed = waypoint_heading - curr_compass_heading
+
+        # Normalize the rotation to the range [-π, π]
+        if rotation_needed > math.pi:
+            rotation_needed -= 2 * math.pi
+        elif rotation_needed < -math.pi:
+            rotation_needed += 2 * math.pi
+
+        return rotation_needed
+
+    def calculate_distance_to_waypoint(self, waypoint, curr_gps):
+        dx = (waypoint.lon - curr_gps.lon) * LONGITUDE_LENGTH
+        dy = (waypoint.lat - curr_gps.lat) * LATITUDE_LENGTH
+
+        return math.sqrt(dx**2 + dy**2)
 
     def mag_callback(self, msg):
         # 0 radians is due north
         self.curr_compass_heading = math.atan2(msg.magnetic_field.y, msg.magnetic_field.x)
         self.get_logger().info(f"Current compass heading: {self.curr_compass_heading}")
-
-    # def waypoint_qualification_callback(self):
-    #     if self.curr_gps is None or self.curr_compass_heading is None:
-    #         self.get_logger().warn("Waiting for GPS coordinate or compass heading to be available")
-    #         return
-        
-    #     rotation_tolerance = 0.1  # radians
-    #     dist_tolerance = 0.5 # meters
-    #     speed = 1.0
-    #     cmd_vel = Twist()
-        
-    #     dist_to_waypoint = calculate_distance_to_waypoint(self.curr_gps_waypoint, self.curr_gps)
-    #     if dist_to_waypoint < dist_tolerance:
-    #         self.get_logger().info(f"Reached waypoint")
-    #         self.waypoint_qual_timer.cancel()
-    #         self.cmd_vel_pub.publish(cmd_vel)  # Stop the robot
-    #         return
-
-    #     rotation_to_waypoint = calculate_rotation_to_waypoint(
-    #         self.curr_gps_waypoint, 
-    #         self.curr_gps, 
-    #         self.curr_compass_heading 
-    #     )
-
-    #     self.get_logger().info(f"Rotation needed: {rotation_to_waypoint} radians")
-
-    #     if abs(rotation_to_waypoint) < rotation_tolerance:
-    #         self.get_logger().info("Robot is facing the waypoint, moving forward")
-    #         cmd_vel.linear.x = speed
-    #     else:
-    #         self.get_logger().info("Robot is not facing the waypoint, rotating")
-    #         cmd_vel.angular.z = rotation_to_waypoint * speed
-
-    #     self.cmd_vel_pub.publish(cmd_vel)
-    #     self.get_logger().info(f"Published cmd_vel: linear.x={cmd_vel.linear.x}, angular.z={cmd_vel.angular.z}")
 
     def restart_navigation(self):
         self.navigation_timer.reset()
