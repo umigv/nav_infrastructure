@@ -34,9 +34,11 @@ private:
 
     void mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
         nav_msgs::msg::OccupancyGrid inflated_grid = *msg;
-        pub_->publish(inflated_grid);
 
         inflateObstacles(inflated_grid, 10, 20, 0.9); // 10
+
+        pub_->publish(inflated_grid);
+
         inflated_grid.header.frame_id = "odom";
         // inflated_grid.header.stamp = this->now();
         inflated_grid.info.origin.position.x = -14 * inflated_grid.info.resolution;

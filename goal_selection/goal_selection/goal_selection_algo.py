@@ -5,7 +5,7 @@ import random
 from collections import deque
 import math
 import matplotlib.pyplot as plt
-
+import time
 
 def is_valid_move(position, matrix, visited):  
 
@@ -127,7 +127,7 @@ def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal
 
     min_cell_cost = float('inf')
     best_cell = None
-    visualize_cost_map(matrix)
+    # visualize_cost_map(matrix)
     goal_cost_matrx = np.zeros_like(matrix, dtype=np.float64) + 100.0
 
     where_visted = np.zeros_like(matrix)
@@ -182,8 +182,9 @@ def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal
     
     print("BEST CELL", best_cell)
     print("BEST COST", min_cell_cost)
-    visualize_cost_map(where_visted)
-    visualize_matrix_with_goal(goal_cost_matrx,robot_pose, best_cell) # fav print
+    time.sleep(0.1)
+    # visualize_cost_map(where_visted)
+    # visualize_matrix_with_goal(goal_cost_matrx,robot_pose, best_cell) # fav print
     # print("Number of cells visited: ", num_visted)
     # visualize_cost_map(where_visted)
     # max_value = np.max(goal_cost_matrx)
