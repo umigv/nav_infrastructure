@@ -247,7 +247,7 @@ class GoalSelectionNode(Node):
         except Exception as e:
             self.get_logger().error(f'Exception in navigate_to_goal_result_callback: {e}')
         #add a timer to wait before restarting navigation
-        time.sleep(0.5)
+        # time.sleep(0.1)
         self.restart_navigation()
 
 def main():

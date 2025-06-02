@@ -127,17 +127,39 @@ def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal
 
     min_cell_cost = float('inf')
     best_cell = None
-    # visualize_cost_map(matrix)
+    visualize_cost_map(matrix) # good
     goal_cost_matrx = np.zeros_like(matrix, dtype=np.float64) + 100.0
 
     where_visted = np.zeros_like(matrix)
     print("START BFS")
     print(start_bfs)
     where_visted[start_bfs[1]][start_bfs[0]] = 10;
+    
+
+    def seed(tupp):
+        print("seeding")
+        print(tupp)
+        where_visted[tupp[1]][tupp[0]] = 10;
+        visited.add(tupp)
+        queue.append(tupp)    
+    
+
+    for i in range(-10, 11, 1):  
+        seed((start_bfs[0] ,start_bfs[1] + i ))
+
+
+    
+
+
+
+
+
+
+
+
     print("START BFS2")
 
     num_visted = 0
-    # visualize_cost_map(goal_cost_matrx)
 
     while queue:
         # print("queue ")
@@ -178,13 +200,12 @@ def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal
                     queue.append((nx, ny))
                     visited.add((nx, ny))
     
-    # visualize_cost_map(goal_cost_matrx)
     
     print("BEST CELL", best_cell)
     print("BEST COST", min_cell_cost)
-    time.sleep(0.1)
-    # visualize_cost_map(where_visted)
-    # visualize_matrix_with_goal(goal_cost_matrx,robot_pose, best_cell) # fav print
+    # time.sleep(0.01)
+    visualize_cost_map(where_visted) # good
+    visualize_matrix_with_goal(goal_cost_matrx,robot_pose, best_cell) # fav print good
     # print("Number of cells visited: ", num_visted)
     # visualize_cost_map(where_visted)
     # max_value = np.max(goal_cost_matrx)
