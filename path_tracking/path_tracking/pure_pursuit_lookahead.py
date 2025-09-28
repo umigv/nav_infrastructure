@@ -35,7 +35,8 @@ class PurePursuitNode(Node):
 
         self.cb_group = ReentrantCallbackGroup()
         self.create_subscription(Odometry, '/odom', self.odom_callback, 10, callback_group=self.cb_group)
-        self.cmd_pub = self.create_publisher(Twist, '/joy_cmd_vel', 10)
+        # self.cmd_pub = self.create_publisher(Twist, '/joy_cmd_vel', 10)
+        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.path_pub = self.create_publisher(Path, '/debug_path', 10)
         self.raw_path_pub = self.create_publisher(Path, '/debug_raw_path', 10)
 
@@ -252,6 +253,7 @@ class PurePursuitNode(Node):
         cmd.linear.x = linear
         cmd.angular.z = angular
         self.cmd_pub.publish(cmd)
+        print("[pure_pursuit_lookahead] published Twist to /cmd_vel")
     
     #original control loop
     '''
@@ -310,6 +312,7 @@ class PurePursuitNode(Node):
 
 
 def main(args=None):
+    print("[pure_pursuit_lookahead.py]")
     rclpy.init(args=args)
     node = PurePursuitNode()
 

@@ -27,7 +27,8 @@ class PurePursuitNode(Node):
         self.create_subscription(PoseStamped, '/goal_pose', self.goal_callback, 10)
 
         # Publisher
-        self.cmd_pub = self.create_publisher(Twist, '/joy_cmd_vel', 10)
+        # self.cmd_pub = self.create_publisher(Twist, '/joy_cmd_vel', 10)
+        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
         # Timer
         self.create_timer(0.05, self.control_loop)
@@ -82,9 +83,11 @@ class PurePursuitNode(Node):
         cmd.linear.x = linear
         cmd.angular.z = angular
         self.cmd_pub.publish(cmd)
+        print("[pure_pursuit_controller] published Twist to /cmd_vel")
 
 
 def main(args=None):
+    print("[pure_pursuit_controller.py]")
     rclpy.init(args=args)
     node = PurePursuitNode()
     rclpy.spin(node)
