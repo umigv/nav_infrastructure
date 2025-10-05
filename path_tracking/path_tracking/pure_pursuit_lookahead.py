@@ -42,7 +42,6 @@ class PurePursuitNode(Node):
 
         self.create_timer(1.0, self.publish_path, callback_group=self.cb_group)
         self.create_timer(1.0, self.publish_raw_path, callback_group=self.cb_group)
-        print("HERE")
 
         self.action_server = ActionServer(
             self,
@@ -51,20 +50,15 @@ class PurePursuitNode(Node):
             execute_callback=self.execute_callback,
             callback_group=self.cb_group
         )
-        print("HERE")
 
         self.speed_percent = 2
         self.exec_percent = 0.6
-        print("HERE")
 
         # asyncio.create_task(self.update_vals())
-        print("HERE")
 
-        # self.create_timer(0.1, self.control_loop, callback_group=self.cb_group)
-        # print("HERE")
+        self.create_timer(0.1, self.control_loop, callback_group=self.cb_group)
 
         # threading.Thread(target=self.helper, daemon=True).start()
-        # print("HERE")
 
     def helper(self):
         asyncio.run(self.update_vals())
@@ -82,7 +76,7 @@ class PurePursuitNode(Node):
 
     def execute_callback(self, goal_handle):
         self.get_logger().info('Received a new path from action client.')
-        raw_path = [(p.x, p.y) for p in goal_handle.request.path]
+        raw_path = [(float(p.x), float(p.y)) for p in goal_handle.request.path]
         for i in raw_path:
             print(i)
         pathsz = int(len(raw_path) * self.exec_percent)
@@ -253,7 +247,6 @@ class PurePursuitNode(Node):
         cmd.linear.x = linear
         cmd.angular.z = angular
         self.cmd_pub.publish(cmd)
-        print("[pure_pursuit_lookahead] published Twist to /cmd_vel")
     
     #original control loop
     '''
@@ -312,7 +305,6 @@ class PurePursuitNode(Node):
 
 
 def main(args=None):
-    print("[pure_pursuit_lookahead.py]")
     rclpy.init(args=args)
     node = PurePursuitNode()
 
