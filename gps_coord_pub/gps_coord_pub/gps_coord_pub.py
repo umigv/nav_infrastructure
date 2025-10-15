@@ -18,7 +18,7 @@ class GPSCoordPublisher(Node):
 
         # Set up publisher callback on a 1 second timer
         timer_period = 1  # seconds
-        self.timer = self.create_timer(timer_period, self.publish_coords_debug)
+        self.timer = self.create_timer(timer_period, self.publish_coords)
 
         # Set up message
         self.fix = NavSatFix()
@@ -28,11 +28,10 @@ class GPSCoordPublisher(Node):
     def publish_coords(self):
 
         # Set up GPS connection
-        stream = Serial('/dev/ttyACM0', 9600, timeout=3)
+        stream = Serial('/dev/ttyACM0', 460800, timeout=3)
         ubr = UBXReader(stream)
 
-        (raw_data, parsed_data) = ubr.read()
-        print(parsed_data)
+        (_, parsed_data) = ubr.read()
 
         # <NMEA(GNRMC, time=22:18:38, status=A, lat=52.62063, NS=N, lon=-2.16012, EW=W, spd=37.84, cog=, date=2021-03-05, mv=, mvEW=, posMode=A)>
         # parsed_data.lat
