@@ -32,6 +32,7 @@ class GPSCoordPublisher(Node):
         ubr = UBXReader(stream)
 
         (_, parsed_data) = ubr.read()
+        print(parsed_data)
 
         # <NMEA(GNRMC, time=22:18:38, status=A, lat=52.62063, NS=N, lon=-2.16012, EW=W, spd=37.84, cog=, date=2021-03-05, mv=, mvEW=, posMode=A)>
         # parsed_data.lat
