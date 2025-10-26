@@ -1,11 +1,12 @@
 import rclpy
 from rclpy.node import Node
-from rclpy.action import ActionServer
+# from rclpy.action import ActionServer
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from geometry_msgs.msg import Twist, PoseStamped
 from nav_msgs.msg import Odometry, Path
-from infra_interfaces.action import FollowPath
+# from infra_interfaces.action import FollowPath
+from infra_interfaces.msg import FollowPathRequest
 import asyncio
 import math
 import time
@@ -43,11 +44,11 @@ class PurePursuitNode(Node):
         self.create_timer(1.0, self.publish_path, callback_group=self.cb_group)
         self.create_timer(1.0, self.publish_raw_path, callback_group=self.cb_group)
 
-        self.action_server = ActionServer(
-            self,
-            FollowPath,
-            'follow_path',
-            execute_callback=self.execute_callback,
+        self.subscription = self.create_subscription(
+            FollowPathRequest,
+            '/follow_path',
+            self.execute_callback,
+            10,
             callback_group=self.cb_group
         )
 
@@ -74,9 +75,9 @@ class PurePursuitNode(Node):
         print(self.exec_percent)
 
 
-    def execute_callback(self, goal_handle):
-        self.get_logger().info('Received a new path from action client.')
-        raw_path = [(float(p.x), float(p.y)) for p in goal_handle.request.path]
+    def execute_callback(self, path_msg):
+        self.get_logger().info('Received a new path from subscription.')
+        raw_path = [(float(p.x), float(p.y)) for p in path_msg.path]
         for i in raw_path:
             print(i)
         pathsz = int(len(raw_path) * self.exec_percent)
@@ -85,6 +86,9 @@ class PurePursuitNode(Node):
 
 
         self.path = self.smooth_path_spline(self.raw_path)
+        print("smoothed path:")
+        for i in self.path:
+            print(i)
         self.reached_goal = False
         self.visited = 0
 
@@ -92,8 +96,6 @@ class PurePursuitNode(Node):
             time.sleep(0.05)
 
         self.path = []
-        goal_handle.succeed()
-        return FollowPath.Result()
     
   
     def smooth_path(self, path, window_size=5):
