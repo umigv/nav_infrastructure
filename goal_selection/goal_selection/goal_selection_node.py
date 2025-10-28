@@ -1,19 +1,23 @@
+from asyncio import Future
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
-from nav_msgs.msg import Odometry
+from nav_msgs.msg import Odometry, OccupancyGrid
 from sensor_msgs.msg import NavSatFix
 from map_interfaces.srv import InflationGrid
 from infra_interfaces.action import NavigateToGoal
 from infra_interfaces.msg import CellCoordinateMsg
 from geometry_msgs.msg import Pose
 import numpy as np
+import numpy.typing as npt
 import time
 from goal_selection.goal_selection_algo import *
 from goal_selection.waypoint_manager import GPSWaypointManager
 from scipy.spatial.transform import Rotation
 from goal_selection.waypoint_manager import GPSCoordinate
+
+GoalSelectionResponse = tuple[tuple[int, int], tuple[int, int] | None, OccupancyGrid]
 
 class RobotPose:
     def __init__(self, x: float, y: float, yaw: float = 0.0):
@@ -40,7 +44,7 @@ class GoalSelectionNode(Node):
         gps_coords_topic = self.get_parameter('gps_coords_topic').get_parameter_value().string_value
         navigation_retry_frequency = self.get_parameter('navigation_retry_frequency').get_parameter_value().double_value
         waypoints_file_name = self.get_parameter('waypoints_file_name').get_parameter_value().string_value
-        
+
         self.get_logger().info("Initializing goal selection node with following parameters: ")
         self.get_logger().info(f"\todom_topic: {odom_topic}")
         self.get_logger().info(f"\tgps_coords_topic: {gps_coords_topic}")
@@ -49,8 +53,8 @@ class GoalSelectionNode(Node):
 
         self.waypoints_manager = GPSWaypointManager(waypoints_file_name, self.get_logger())
         self.curr_gps_waypoint = self.waypoints_manager.get_next_waypoint()
-        self.curr_pose = None
-        self.curr_gps = None
+        self.curr_pose: RobotPose | None = None
+        self.curr_gps: GPSCoordinate | None = None
 
         testingIntercept = True
         qos_profile = QoSProfile(
@@ -75,7 +79,7 @@ class GoalSelectionNode(Node):
         self.navigate_client = ActionClient(self, NavigateToGoal, 'navigate_to_goal')
         self.navigation_timer = self.create_timer(0.5, self.send_inflation_request)
 
-    def odom_callback(self, msg):
+    def odom_callback(self, msg: Odometry):
         quat = msg.pose.pose.orientation
         quat_scipy = [quat.x, quat.y, quat.z, quat.w]
         r = Rotation.from_quat(quat_scipy)
@@ -113,31 +117,33 @@ class GoalSelectionNode(Node):
             self.get_logger().info('Waiting for inflation_grid_service...')
 
         self.get_logger().info("Sending inflation_grid_service request")
-        self.req = InflationGrid.Request()
-        future = self.inflation_client.call_async(self.req)
+        future = self.inflation_client.call_async(InflationGrid.Request())
         future.add_done_callback(self.inflation_response_callback)
 
-    def inflation_response_callback(self, future):
+    def inflation_response_callback(self, future: Future[InflationGrid.Response]):
         try:
             response = future.result()
             self.get_logger().info('Received inflation grid response')
             starting_pose, new_goal, my_occgrid = self.goal_testing_wrapper(response)
+            if new_goal is None:
+                raise(f"Goal selection from {starting_pose} could not find a new goal!")
+
             self.get_logger().info(f"Sending Starting Pose: {starting_pose} and Goal: {new_goal}")
             self.send_navigate_goal(starting_pose[::-1], new_goal[::-1], my_occgrid)
         except Exception as e:
             self.get_logger().error(f'Exception while calling service: {e}')
             self.restart_navigation()
 
-    def goal_testing_wrapper(self, grid_msg):
+    def goal_testing_wrapper(self, grid_msg: InflationGrid.Response) -> GoalSelectionResponse:
         robot_pose_x, robot_pose_y = grid_msg.robot_pose_x, grid_msg.robot_pose_y
         return (robot_pose_x, robot_pose_y), (10 ,78), grid_msg.occupancy_grid
 
-    def goal_selection_wrapper(self, grid_msg):
+    def goal_selection_wrapper(self, grid_msg: InflationGrid.Response) -> GoalSelectionResponse:
        
         print("Started goal_selection ")
 
         robot_pose_x, robot_pose_y = grid_msg.robot_pose_x, grid_msg.robot_pose_y
-        matrix = np.array(grid_msg.occupancy_grid.data).reshape((grid_msg.occupancy_grid.info.height, grid_msg.occupancy_grid.info.width))
+        matrix: npt.NDArray[np.int_] = np.array(grid_msg.occupancy_grid.data).reshape((grid_msg.occupancy_grid.info.height, grid_msg.occupancy_grid.info.width))
         matrix = np.flipud(matrix)
         # start_bfs = (47, 78)
         # robot_pose = (55, 78)
@@ -187,7 +193,7 @@ class GoalSelectionNode(Node):
 
         return (robot_pose_x, robot_pose_y), min_cost_cell, grid_msg.occupancy_grid
 
-    def send_navigate_goal(self, starting_pose, new_goal, my_occgrid):
+    def send_navigate_goal(self, starting_pose: tuple[int, int], new_goal: tuple[int, int], my_occgrid: OccupancyGrid):
         """ Sends a goal to the NavigateToGoal action and waits for the result or feedback condition """
 
         self.starting_pose = starting_pose[::-1]  # Reverse the order for the action server
@@ -208,7 +214,8 @@ class GoalSelectionNode(Node):
     
     def feedback_callback(self, feedback_msg):
         """ Process feedback from the action server """
-        pose = feedback_msg.feedback.distance_from_start
+        feedback: NavigateToGoal.Feedback = feedback_msg.feedback
+        pose = feedback.distance_from_start
         self.get_logger().info(f"Feedback received: Pose({pose.position.x}, {pose.position.y})")
 
         # Stop if the pose is within 1.0 of the starting pose
@@ -233,7 +240,7 @@ class GoalSelectionNode(Node):
             self.get_logger().error(f'Exception in navigate_to_goal_acceptance_callback: {e}')
             self.restart_navigation()
 
-    def navigate_to_goal_result_callback(self, future):
+    def navigate_to_goal_result_callback(self, future: Future[NavigateToGoal.Result]):
         try:
             navigation_result = future.result().success
             if navigation_result:

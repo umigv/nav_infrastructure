@@ -1,25 +1,25 @@
 
 import numpy as np
-import numpy as np
+import numpy.typing as npt
 import random
 from collections import deque
 import math
 import matplotlib.pyplot as plt
 
 
-def is_valid_move(position, matrix, visited):  
+def is_valid_move(position: tuple[int, int], matrix: npt.NDArray[np.int_], visited: set[tuple[int, int]]):  
 
     y, x = position
     rows, cols = matrix.shape
     return 0 <= y < rows and 0 <= x < cols and matrix[y, x] == 1 and position not in visited
 
 # assumes radians angles
-def get_angle_difference(to_angle, from_angle):
+def get_angle_difference(to_angle: float, from_angle: float):
     delta = to_angle - from_angle
     delta = (delta + math.pi) % (2 * math.pi) - math.pi
     return delta
 
-def find_desired_heading( cur_gps, goal_gps, orientation):
+def find_desired_heading(cur_gps: tuple[float, float], goal_gps: tuple[float, float], orientation: float):
     # lat long degress to meter ratio for the state of Michigan
     latitude_length=111086.2 
     longitude_length=81978.2 
@@ -35,7 +35,7 @@ def find_desired_heading( cur_gps, goal_gps, orientation):
     desired_heading_global = math.atan2(desired_heading_y, desired_heading_x) # - math.pi
     return desired_heading_global
 
-def get_angle_to_goal_pentaly(canidate_node, real_robot_pos, orientation, desired_heading_global):
+def get_angle_to_goal_pentaly(canidate_node: tuple[int, int], real_robot_pos: tuple[int, int], orientation: float, desired_heading_global: float):
     y,x = canidate_node
     outside_point_y, outside_point_x = real_robot_pos
     dx = x - outside_point_x
@@ -51,7 +51,7 @@ def get_angle_to_goal_pentaly(canidate_node, real_robot_pos, orientation, desire
 
 #TODO combine first 3 args into a tuple
 
-def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, rows, cols, matrix, using_angle): 
+def calculate_cost(real_rob_pose: tuple[int, int], orientation: float, desire_heading: float, start: tuple[int, int], current: tuple[int, int], rows: int, cols: int, matrix: npt.NDArray[np.int_], using_angle: bool) -> float: 
     edge_penalty_factor=.025
     distance_weight=.5
     min_distance=2
@@ -85,7 +85,7 @@ def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, r
     weighted_distance = distance_weight * euclidean_distance
 
     # Pull from inflation layer 
-    min_distance_to_obstacle = matrix[y_current][x_current]
+    min_distance_to_obstacle: int = matrix[y_current][x_current]
     
     # Edge penalty
     edge_penalty = min(x_current, cols - x_current - 1, y_current, rows - y_current - 1)
@@ -105,7 +105,7 @@ def calculate_cost(real_rob_pose, orientation ,desire_heading, start, current, r
 
 # BFS Function
 
-def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal_gps=0, robot_orientation=0, using_angle=False):
+def bfs_with_cost(robot_pose: tuple[int, int], matrix: npt.NDArray[np.int_], start_bfs: tuple[int, int], directions: list[tuple[int, int]], current_gps=0, goal_gps=0, robot_orientation=0, using_angle=False):
     # Calculate cost for this cell
     current_gps = (42.668086, -83.218446) # TODO get this from sensors
     goal_gps = (42.6679277, -83.2193276) # TODO get this from publisher
@@ -118,12 +118,12 @@ def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal
     using_angle = False
 
     rows, cols = matrix.shape
-    visited = set()
+    visited: set[tuple[int, int]] = set()
     queue = deque([start_bfs])
     visited.add(start_bfs)
 
     min_cell_cost = float('inf')
-    best_cell = None
+    best_cell: tuple[int, int] | None = None
     visualize_cost_map(matrix)
     goal_cost_matrx = np.zeros_like(matrix, dtype=np.float64) + 100.0
 
@@ -174,7 +174,7 @@ def bfs_with_cost(robot_pose, matrix, start_bfs, directions, current_gps=0, goal
     return best_cell, min_cell_cost
 
 # Visualize the cost map
-def visualize_cost_map(cost_map):
+def visualize_cost_map(cost_map: npt.NDArray[np.int_]):
     plt.figure(figsize=(10, 8))
     plt.imshow(cost_map, cmap='viridis', origin='upper')
     plt.colorbar(label='Cost')
@@ -186,7 +186,7 @@ def visualize_cost_map(cost_map):
 
 
 
-def visualize_matrix_with_goal(matrix, start, goal):
+def visualize_matrix_with_goal(matrix: npt.NDArray[np.int_], start: tuple[int, int], goal: tuple[int, int]):
     print(" GOAL ", goal)
     print(" START ", start)
     plt.figure(figsize=(8, 8))
