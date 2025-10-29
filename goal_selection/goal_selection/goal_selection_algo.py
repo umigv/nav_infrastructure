@@ -158,9 +158,9 @@ def bfs_with_cost(robot_pose,
     Returns the optimal goal cell, its cost, and whether the goal cell is a waypoint. 
     """
     rows, cols = matrix.shape
-    visited = set()
+    visited = {}
     queue = deque([start_bfs])
-    visited.add(start_bfs)
+    visited[start_bfs] = (-1, -1)
 
     min_cell_cost = float('inf')
     best_cell = None
@@ -193,7 +193,7 @@ def bfs_with_cost(robot_pose,
     while queue:
         # print("queue ")
         num_visted += 1
-        x,y = queue.pop() # pop for dfs pop left for bfs
+        x,y = queue.popleft() # pop for dfs pop left for bfs
 
         d_heading = 0
         if using_angle:
@@ -228,8 +228,18 @@ def bfs_with_cost(robot_pose,
                 # if all(0 <= ny + dy < rows and 0 <= nx + dx < cols and -1 < matrix[ny + dy, nx + dx] < 2000000 
                 #     for dy in [-1, 0, 1] for dx in [-1, 0, 1] if (dx, dy) != (0, 0)):
                     queue.append((nx, ny))
-                    visited.add((nx, ny))
+                    visited[(nx, ny)] = (x, y)
     
+    path = []
+    backtrace_cell = best_cell
+    while backtrace_cell != (-1, -1):
+        path.append(backtrace_cell)
+        backtrace_cell = visited[backtrace_cell]
+
+    path.reverse()
+
+    print(f"path from BFS: {path}")
+
     visualize_cost_map(goal_cost_matrx)
 
     #if waypoint in frame, goal_cost
