@@ -8,12 +8,15 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 include_directories(include)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON) # Fixed build error after moving example_path_planner_plugin to new directory
 add_library(${PROJECT_NAME} 
-  src/costmap.cpp)
+  src/costmap.cpp
+  src/pose_manager.cpp
+)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -22,9 +25,14 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 ament_target_dependencies(
   ${PROJECT_NAME} 
-  nav_msgs)
+  nav_msgs
+  tf2_geometry_msgs
+)
 
-ament_export_dependencies(nav_msgs)
+ament_export_dependencies(
+  nav_msgs
+  tf2_geometry_msgs
+)
 
 install(
   DIRECTORY include/${PROJECT_NAME}

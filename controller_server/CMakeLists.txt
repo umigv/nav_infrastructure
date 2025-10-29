@@ -15,14 +15,11 @@ find_package(geometry_msgs REQUIRED)
 find_package(plugin_base_classes REQUIRED)
 find_package(infra_common REQUIRED)
 find_package(nav_msgs REQUIRED)
-find_package(tf2 REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
 
 include_directories(include)
 
 add_executable(controller_server 
   src/controller_server.cpp
-  src/pose_manager.cpp
 )
 
 ament_target_dependencies(controller_server
@@ -34,8 +31,6 @@ ament_target_dependencies(controller_server
   plugin_base_classes
   infra_common
   nav_msgs
-  tf2
-  tf2_geometry_msgs
 )
 
 install(

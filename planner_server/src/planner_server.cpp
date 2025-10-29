@@ -5,12 +5,14 @@
 #include "pluginlib/class_loader.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 
 #include "infra_interfaces/action/navigate_to_goal.hpp"
 #include "infra_interfaces/msg/cell_coordinate_msg.hpp"
 #include "plugin_base_classes/path_planner.hpp"
 #include "infra_common/cell_coordinate.hpp"
 #include "infra_interfaces/action/follow_path.hpp"
+#include "infra_common/pose_manager.hpp"
 
 
 namespace planner_server
@@ -19,13 +21,13 @@ namespace planner_server
 using namespace infra_common;
 using namespace infra_interfaces::msg;
 using namespace std::placeholders;
+using namespace geometry_msgs::msg;
 
 using NavigateToGoal = infra_interfaces::action::NavigateToGoal;
 using GoalHandleNavigateToGoal = rclcpp_action::ServerGoalHandle<NavigateToGoal>;
 
 using FollowPath = infra_interfaces::action::FollowPath;
 using GoalHandleFollowPath = rclcpp_action::ClientGoalHandle<FollowPath>;
-
 class PlannerServer : public rclcpp::Node
 {
 public:
@@ -34,11 +36,17 @@ public:
     {
         declare_parameter("planner_plugin", "");
         declare_parameter("isolate_path_planner", false);
+        declare_parameter("odom_topic", "");
         
         _isolate_path_planner = get_parameter("isolate_path_planner").as_bool();
         RCLCPP_INFO(get_logger(), "Isolate path planner: %d", _isolate_path_planner);
         std::string planner_plugin = get_parameter("planner_plugin").as_string();
         load_planner_plugin(planner_plugin);
+
+        std::string odom_topic = get_parameter("odom_topic").as_string();
+        _odom_subscriber = create_subscription<nav_msgs::msg::Odometry>(odom_topic, 
+            10, 
+            std::bind(&PlannerServer::odom_callback, this, _1));
 
         using namespace std::placeholders;
         _navigate_server = rclcpp_action::create_server<NavigateToGoal>(this,
@@ -48,6 +56,9 @@ public:
             std::bind(&PlannerServer::handle_accepted, this, _1));
 
         _follow_path_client = rclcpp_action::create_client<FollowPath>(this, "follow_path");
+
+        // Using absolute poses, so origin is default pose
+        _pose_mgr.set_origin(PoseManager::default_pose());
     }
 
 private:
@@ -66,10 +77,17 @@ private:
         }
     }
 
+    void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
+    {
+        Pose abs_pose = msg->pose.pose;
+        _pose_mgr.update_absolute_pose(abs_pose);
+    }
+
     rclcpp_action::GoalResponse handle_goal(const rclcpp_action::GoalUUID & uuid,
         std::shared_ptr<const NavigateToGoal::Goal> goal)
     {
         RCLCPP_INFO(this->get_logger(), "Received goal request");
+
         (void)uuid;
 
         // Validate the action goal
@@ -78,7 +96,9 @@ private:
             Costmap costmap(goal->costmap);
             CellCoordinateMsg start = goal->start;
             CellCoordinateMsg goal_coord = goal->goal;
-
+            RCLCPP_INFO(this->get_logger(), "Start: (%d, %d)", start.x, start.y);
+            RCLCPP_INFO(this->get_logger(), "Goal: (%d, %d)", goal_coord.x, goal_coord.y);
+            RCLCPP_INFO(this->get_logger(), "Costmap width (for x) , height for (y): (%d, %d)", costmap.GetWidth(), costmap.GetHeight());
             if (start == goal_coord)
             {
                 RCLCPP_ERROR(this->get_logger(), "Start and goal coordinates are the same");
@@ -88,6 +108,7 @@ private:
             if (!costmap.InBounds(start.x, start.y) || !costmap.InBounds(goal_coord.x, goal_coord.y))
             {
                 RCLCPP_ERROR(this->get_logger(), "Start or goal coordinate is out of bounds");
+
                 return rclcpp_action::GoalResponse::REJECT;
             }
         }
@@ -125,10 +146,10 @@ private:
         CellCoordinate goal = {(int)goalMsg.x, (int)goalMsg.y};
         RCLCPP_INFO(get_logger(), "Navigating from (%d, %d) to (%d, %d)", start.x, start.y, goal.x, goal.y);
 
-        auto drivable = [](int cost) { return cost == 0; };
+        auto drivable = [](int cost) { return (cost < 100); };
         // Need to include start in this path
         std::vector<CellCoordinate> path = _planner->find_path(costmap, 
-            drivable,
+            drivable, 
             start,
             goal);
         
@@ -174,10 +195,9 @@ private:
             return;
         }
 
-        std::vector<CellCoordinateMsg> path_msg = convert_path(path);
+        std::vector<Point> path_msg = normalize_path(path, resolution);
         auto goal = FollowPath::Goal();
         goal.path = path_msg;
-        goal.resolution = resolution;
 
         RCLCPP_INFO(get_logger(), "Calling follow_path action with calculated path");
         auto options = rclcpp_action::Client<FollowPath>::SendGoalOptions();
@@ -245,6 +265,45 @@ private:
         }
     }
 
+    // Converts a given path with the given resolution to a path with resolution 1 meter/cell
+    std::vector<geometry_msgs::msg::Point> normalize_path(const std::vector<CellCoordinate> &discrete_path,
+        const double &resolution)
+    {
+        // We are assuming the robot is currently located at the first cell in the path
+
+        RCLCPP_INFO(get_logger(), "Normalizing path using resolution: %f", resolution);
+
+        Pose curr_abs_pose = _pose_mgr.get_absolute_pose();
+        RCLCPP_INFO(get_logger(), "Normalizing path using current absolute pose: %f, %f, %f", 
+            curr_abs_pose.position.x, 
+            curr_abs_pose.position.y, 
+            curr_abs_pose.position.z);
+
+        // Distance in meters from the costmap origin
+        Pose curr_relative_pose = PoseManager::default_pose(); 
+        CellCoordinate start_cell = discrete_path.front();
+        curr_relative_pose.position.x = (double)start_cell.x * resolution;
+        curr_relative_pose.position.y = (double)start_cell.y * resolution;
+
+        // To transform path to absolute poses, add absolute pose of costmap origin to every point
+        Pose costmap_origin_abs_pose = PoseManager::pose_difference(curr_abs_pose, curr_relative_pose); // change to add
+
+        std::vector<geometry_msgs::msg::Point> path;
+        for (CellCoordinate discrete_point : discrete_path)
+        {
+            // Add absolute pose of costmap origin to each point
+            geometry_msgs::msg::Point point;
+            point.x = discrete_point.x * resolution + costmap_origin_abs_pose.position.x;
+            point.y = discrete_point.y * resolution + costmap_origin_abs_pose.position.y;
+            point.z = 0;
+            path.push_back(point);
+
+            RCLCPP_INFO(get_logger(), "\tPath cell coordinate: %d, %d", discrete_point.x, discrete_point.y);
+            RCLCPP_INFO(get_logger(), "\tPath absolute pose: %f, %f, %f", point.x, point.y, point.z);
+        }
+        return path;
+    }
+
     // Simulates robot motion by publishing feedback poses from the calculated path
     // Used with the nav_visualization package to visualize the robot's path
     void simulate_robot_motion(const std::vector<CellCoordinate> &path,
@@ -270,23 +329,12 @@ private:
         RCLCPP_INFO(get_logger(), "Navigation succeeded");
     }
 
-    static std::vector<CellCoordinateMsg> convert_path(const std::vector<CellCoordinate> &path)
-    {
-        std::vector<CellCoordinateMsg> pathMsg;
-        for (CellCoordinate coord : path)
-        {
-            CellCoordinateMsg coordMsg;
-            coordMsg.x = coord.x;
-            coordMsg.y = coord.y;
-            pathMsg.push_back(coordMsg);
-        }
-        return pathMsg;
-    }
-
     std::shared_ptr<plugin_base_classes::PathPlanner> _planner;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr _odom_subscriber;
     rclcpp_action::Server<NavigateToGoal>::SharedPtr _navigate_server;
     rclcpp_action::Client<FollowPath>::SharedPtr _follow_path_client;
     bool _isolate_path_planner;
+    PoseManager _pose_mgr; 
 };  
 
 } // namespace planner_server
