@@ -16,4 +16,4 @@ goal_selection:
     magnetometer_topic: "/zed/zed_node/imu/mag" # Must be of type sensor_msgs/MagneticField
     navigation_retry_frequency: 0.5 # Seconds, time between navigation success/failure and next navigation attempt
     waypoints_file_name: "waypoints.json" # Assumed to be within goal_selection/config
-    waypoint_qualification: True 
+    waypoint_qualification: False 

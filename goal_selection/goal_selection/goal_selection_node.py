@@ -61,8 +61,11 @@ class GoalSelectionNode(Node):
         self.curr_gps_waypoint = self.waypoints_manager.get_next_waypoint()
         self.get_logger().info(f"First GPS waypoint: {self.curr_gps_waypoint}")
         self.curr_pose = None
-        self.curr_gps = None
-        self.curr_compass_heading = None
+        self.curr_gps = GPSCoordinate(
+            lat=40,
+            lon=40
+        )
+        self.curr_compass_heading = math.pi * 1
 
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,

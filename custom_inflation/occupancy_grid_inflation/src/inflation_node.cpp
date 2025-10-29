@@ -9,7 +9,7 @@ public:
         std::cout << "HELLO" << std::endl;
 
         sub_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
-            "/test_occ", 10, std::bind(&OccupancyGridInflation::mapCallback, this, std::placeholders::_1));
+            "/occupancy_grid", 10, std::bind(&OccupancyGridInflation::mapCallback, this, std::placeholders::_1));
         pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("/inflated_occ", 10);
 
         srv_ = this->create_service<map_interfaces::srv::InflationGrid>(

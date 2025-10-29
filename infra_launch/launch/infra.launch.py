@@ -39,9 +39,19 @@ def generate_launch_description():
         emulate_tty=True    
     )
 
+    inflation_node = Node(
+        package='occupancy_grid_inflation',
+        executable='inflation_node',
+        name='occupancy_grid_inflation',
+        parameters=params,
+        output='screen',    
+        emulate_tty=True    
+    )
+
     nodes = [
         planner_server_node,
         controller_server_node,
-        goal_selection_node
+        goal_selection_node,
+        inflation_node
     ]
     return LaunchDescription(nodes)
