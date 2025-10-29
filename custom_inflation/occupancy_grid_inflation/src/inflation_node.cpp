@@ -76,7 +76,7 @@ private:
 
         response->occupancy_grid = inflated_grid;
         response->robot_pose_x = 14;  // Placeholder values
-        response->robot_pose_y = 76;
+        response->robot_pose_y = 30;
         // response_promise.set_value(response);
         std::cout << "Received service given" << std::endl;
         return;

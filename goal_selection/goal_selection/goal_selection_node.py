@@ -60,7 +60,7 @@ class GoalSelectionNode(Node):
         self.waypoints_manager = GPSWaypointManager(waypoints_file_name, self.get_logger())
         self.curr_gps_waypoint = self.waypoints_manager.get_next_waypoint()
         self.get_logger().info(f"First GPS waypoint: {self.curr_gps_waypoint}")
-        self.curr_pose = None
+        self.curr_pose = RobotPose(1, 1, math.pi * 1)
         self.curr_gps = GPSCoordinate(
             lat=40,
             lon=40
@@ -298,6 +298,7 @@ class GoalSelectionNode(Node):
                                                  current_gps = self.curr_gps, 
                                                  goal_gps = self.curr_gps_waypoint, 
                                                  robot_orientation = self.curr_pose.yaw, 
+                                                 robot_compass_heading=self.curr_compass_heading,
                                                  using_angle=node_using_angle)
         print("Cell with Minimum Cost: ", min_cost_cell, "Minimum Cost: ", min_cost)
         print("WIDTH  ", grid_msg.occupancy_grid.info.width, "HEIGHT ", grid_msg.occupancy_grid.info.height)
