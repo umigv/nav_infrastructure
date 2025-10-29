@@ -34,11 +34,6 @@ ament_target_dependencies(controller_server
 )
 
 install(
-  DIRECTORY include/
-  DESTINATION include
-)
-
-install(
   DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
 )
