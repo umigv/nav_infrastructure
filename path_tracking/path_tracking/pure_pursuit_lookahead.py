@@ -81,9 +81,7 @@ class PurePursuitNode(Node):
         for i in raw_path:
             print(i)
         pathsz = int(len(raw_path) * self.exec_percent)
-        self.raw_path = raw_path[:pathsz]
-       
-
+        self.raw_path = raw_path
 
         self.path = self.smooth_path_spline(self.raw_path)
         print("smoothed path:")
@@ -121,7 +119,7 @@ class PurePursuitNode(Node):
         return list(zip(x_smooth, y_smooth))
     
     def smooth_path_spline(self, path, smoothing=0.1):
-        if len(path) < 3:
+        if len(path) <= 3:
             return path
 
         x = [p[0] for p in path]
