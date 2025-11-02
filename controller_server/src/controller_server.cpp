@@ -186,6 +186,7 @@ private:
         // Distance in meters from the costmap origin
         Pose curr_relative_pose = PoseManager::default_pose(); 
         CellCoordinateMsg start_cell = path_msg.front();
+        
         curr_relative_pose.position.x = (double)start_cell.x * resolution;
         curr_relative_pose.position.y = (double)start_cell.y * resolution;
 
@@ -202,7 +203,7 @@ private:
             point.z = 0;
             path.push_back(point);
 
-            RCLCPP_INFO(get_logger(), "\tPath cell coordinate: %d, %d", coord_msg.x, coord_msg.y);
+            RCLCPP_INFO(get_logger(), "\tPath cell coordinate: %ld, %ld", coord_msg.x, coord_msg.y);
             RCLCPP_INFO(get_logger(), "\tPath absolute pose: %f, %f, %f", point.x, point.y, point.z);
         }
         return path;

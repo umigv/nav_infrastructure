@@ -7,6 +7,7 @@ from sensor_msgs.msg import NavSatFix
 from map_interfaces.srv import InflationGrid
 from infra_interfaces.action import NavigateToGoal
 from infra_interfaces.msg import CellCoordinateMsg
+from infra_interfaces.msg import FollowPathRequest
 from geometry_msgs.msg import Pose
 import numpy as np
 import time
@@ -35,6 +36,8 @@ class GoalSelectionNode(Node):
         self.declare_parameter('gps_coords_topic', '/gps_coords')
         self.declare_parameter('navigation_retry_frequency', 0.5)
         self.declare_parameter('waypoints_file_name', "waypoints.json")
+        self.declare_parameter('waypoint_qualification', False)
+        self.declare_parameter('follow_path', '/follow_path')
 
         odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
         gps_coords_topic = self.get_parameter('gps_coords_topic').get_parameter_value().string_value
@@ -49,8 +52,12 @@ class GoalSelectionNode(Node):
 
         self.waypoints_manager = GPSWaypointManager(waypoints_file_name, self.get_logger())
         self.curr_gps_waypoint = self.waypoints_manager.get_next_waypoint()
-        self.curr_pose = None
-        self.curr_gps = None
+        self.curr_pose = RobotPose(1, 1, math.pi * 1)
+        self.curr_gps = GPSCoordinate(
+            lat=40,
+            lon=40
+        )
+        self.curr_compass_heading = math.pi * 1
 
         testingIntercept = True
         qos_profile = QoSProfile(
@@ -74,6 +81,12 @@ class GoalSelectionNode(Node):
         self.inflation_client = self.create_client(InflationGrid, 'inflation_grid_service')
         self.navigate_client = ActionClient(self, NavigateToGoal, 'navigate_to_goal')
         self.navigation_timer = self.create_timer(0.5, self.send_inflation_request)
+        
+        #11/2: creating the path publisher
+        #self.path_pub = self.create_publisher(type, name, # of queued messages)
+        #I am setting the number of queued messages to 1, as we want the subscriber to get the most up-to-date info.
+        #FollowPathRequest--need to convert the path into the FollowPathRequest.
+        self.path_pub = self.create_publisher(FollowPathRequest, "follow_path", 0)
 
     def odom_callback(self, msg):
         quat = msg.pose.pose.orientation
@@ -121,9 +134,17 @@ class GoalSelectionNode(Node):
         try:
             response = future.result()
             self.get_logger().info('Received inflation grid response')
-            starting_pose, new_goal, my_occgrid = self.goal_testing_wrapper(response)
+            #added current_path
+            starting_pose, new_goal, my_occgrid, goal_is_waypoint, current_path = self.goal_selection_wrapper(response)
+            #seems like there is an issue in the two lines below. It says 5 arguments are being passed in
             self.get_logger().info(f"Sending Starting Pose: {starting_pose} and Goal: {new_goal}")
-            self.send_navigate_goal(starting_pose[::-1], new_goal[::-1], my_occgrid)
+            self.send_navigate_goal(starting_pose[::-1], new_goal[::-1], my_occgrid, goal_is_waypoint)
+            
+            #added publisher
+            path_msg = FollowPathRequest(current_path, my_occgrid.resolution)
+            self.path_pub.publish(path_msg)
+
+
         except Exception as e:
             self.get_logger().error(f'Exception while calling service: {e}')
             self.restart_navigation()
@@ -181,11 +202,23 @@ class GoalSelectionNode(Node):
         #             (1,-1)]   # Right
 
 
-        start_bfs = (robot_pose_x - start_bfs_factor, robot_pose_y)  # Example offset for BFS start()
-        min_cost_cell, min_cost  = bfs_with_cost((robot_pose_x, robot_pose_y), matrix, start_bfs, directions, using_angle=node_using_angle)
+        #this bfs should check if waypoint is in the provided matrix.
+        start_bfs = (robot_pose_x + start_bfs_factor, robot_pose_y)  # Example offset for BFS start()
+        min_cost_cell, min_cost, cell_is_waypoint, current_path  = bfs_with_cost((robot_pose_x, robot_pose_y), 
+                                                 matrix, 
+                                                 start_bfs, 
+                                                 directions, 
+                                                 current_gps = self.curr_gps, 
+                                                 goal_gps = self.curr_gps_waypoint, 
+                                                 robot_orientation = self.curr_pose.yaw, 
+                                                 robot_compass_heading=self.curr_compass_heading,
+                                                 using_angle=node_using_angle)
         print("Cell with Minimum Cost: ", min_cost_cell, "Minimum Cost: ", min_cost)
+        print("WIDTH  ", grid_msg.occupancy_grid.info.width, "HEIGHT ", grid_msg.occupancy_grid.info.height)
+        #11/2: this better be the right resolution
+        grid_msg.occupancy_grid.info.resolution = 0.05
 
-        return (robot_pose_x, robot_pose_y), min_cost_cell, grid_msg.occupancy_grid
+        return (robot_pose_y , robot_pose_x ), (min_cost_cell[1], min_cost_cell[0]), grid_msg.occupancy_grid, cell_is_waypoint, current_path
 
     def send_navigate_goal(self, starting_pose, new_goal, my_occgrid):
         """ Sends a goal to the NavigateToGoal action and waits for the result or feedback condition """

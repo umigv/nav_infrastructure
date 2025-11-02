@@ -27,7 +27,7 @@ private:
         auto inflated_grid = *msg;
         // inflateObstacles(inflated_grid, 17, 0.75);
         // pub_->publish(inflated_grid);
-        std::cout << "got map update"    << std::endl;
+        //std::cout << "got map update"    << std::endl;
         latest_grid_ = msg;
 
 
@@ -53,8 +53,8 @@ private:
         // pub_->publish(inflated_grid);  // Publish inflated map
 
         response->occupancy_grid = inflated_grid;
-        response->robot_pose_x = 55;  // Placeholder values
-        response->robot_pose_y = 78;
+        response->robot_pose_x = 14;  // Placeholder values
+        response->robot_pose_y = 30;
         // response_promise.set_value(response);
         std::cout << "Received service given" << std::endl;
         return;
