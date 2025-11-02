@@ -25,7 +25,8 @@ setup(
     entry_points={
         'console_scripts': [
             'pure_pursuit_lookahead = path_tracking.pure_pursuit_lookahead:main',
-            'pure_pursuit_controller = path_tracking.pure_pursuit_controller:main'
+            'pure_pursuit_controller = path_tracking.pure_pursuit_controller:main',
+            'pure_pursuit_tester = path_tracking.pure_pursuit_tester:main'
         ],
     },
 )
