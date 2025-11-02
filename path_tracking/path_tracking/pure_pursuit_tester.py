@@ -17,10 +17,10 @@ class FollowPathPublisher(Node):
 
         # Create a simple test path
         msg.path = []
-        for y in range(41):
+        for x in range(5):
             cell = CellCoordinateMsg()
-            cell.x = 0
-            cell.y = int(y)
+            cell.x = int(x)
+            cell.y = 0
             msg.path.append(cell)
 
         # Set the map resolution (for example, 0.05 m/cell)
