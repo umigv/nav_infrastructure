@@ -9,6 +9,7 @@
 
 #include "infra_interfaces/action/navigate_to_goal.hpp"
 #include "infra_interfaces/msg/cell_coordinate_msg.hpp"
+#include "infra_interfaces/msg/follow_path_request.hpp"
 #include "plugin_base_classes/path_planner.hpp"
 #include "infra_common/cell_coordinate.hpp"
 #include "infra_interfaces/action/follow_path.hpp"
@@ -55,10 +56,7 @@ public:
             std::bind(&PlannerServer::handle_cancel, this, _1),
             std::bind(&PlannerServer::handle_accepted, this, _1));
 
-        _follow_path_client = rclcpp_action::create_client<FollowPath>(this, "follow_path");
-
-        // Using absolute poses, so origin is default pose
-        _pose_mgr.set_origin(PoseManager::default_pose());
+        _follow_path_pub = this->create_publisher<FollowPathRequest>("/follow_path", 10);
     }
 
 private:
@@ -178,131 +176,23 @@ private:
             return;
         }
 
-        follow_path(path, resolution, goal_handle);
+        follow_path(path, resolution);
     }
 
     // Calls the follow_path action with the given path; returns true if the action
     // succeeded, false if not
-    void follow_path(const std::vector<CellCoordinate> &path,
-        const double &resolution,
-        const std::shared_ptr<GoalHandleNavigateToGoal> navigate_goal_handle)
+    void follow_path(const std::vector<CellCoordinate> &path, const double &resolution)
     {
-        // Wait for follow_path action server
-        if (!_follow_path_client->wait_for_action_server(std::chrono::seconds(1))) 
-        {
-            RCLCPP_ERROR(get_logger(), "follow_path action server not available");
-            navigation_failure(navigate_goal_handle);
-            return;
-        }
+        std::vector<CellCoordinateMsg> path_msg = convert_path(path);
+        auto msg = FollowPathRequest();
+        msg.path = path_msg;
+        msg.resolution = resolution;
 
-        std::vector<Point> path_msg = normalize_path(path, resolution);
-        auto goal = FollowPath::Goal();
-        goal.path = path_msg;
+        RCLCPP_INFO(get_logger(), "Publishing follow_path request with calculated path");
 
-        RCLCPP_INFO(get_logger(), "Calling follow_path action with calculated path");
-        auto options = rclcpp_action::Client<FollowPath>::SendGoalOptions();
-        options.goal_response_callback =
-            std::bind(&PlannerServer::follow_path_goal_response_callback, this, _1, navigate_goal_handle);
-        options.result_callback =
-            std::bind(&PlannerServer::follow_path_result_callback, this, _1, navigate_goal_handle);
-
-        _follow_path_client->async_send_goal(goal, options);
+        _follow_path_pub->publish(msg);
     }
 
-    void follow_path_goal_response_callback(GoalHandleFollowPath::SharedPtr follow_path_goal_handle,
-        const std::shared_ptr<GoalHandleNavigateToGoal> navigate_goal_handle)
-    {
-        if (!follow_path_goal_handle) 
-        {
-            RCLCPP_ERROR(this->get_logger(), "follow_path goal was rejected by server");
-            navigation_failure(navigate_goal_handle);
-        } 
-        else 
-        {
-            RCLCPP_INFO(this->get_logger(), "follow_path goal accepted, waiting for result");
-        }
-    }
-  
-    void follow_path_result_callback(const GoalHandleFollowPath::WrappedResult &result, 
-        const std::shared_ptr<GoalHandleNavigateToGoal> navigate_goal_handle)
-    {
-        if (!check_follow_path_success(result))
-        {
-            navigation_failure(navigate_goal_handle);
-            return;
-        }
-        
-        auto navigate_result = std::make_shared<NavigateToGoal::Result>();
-        RCLCPP_INFO(get_logger(), "Navigation succeeded");
-        navigate_result->success = true;
-        navigate_goal_handle->succeed(navigate_result);
-    }
-
-    void navigation_failure(const std::shared_ptr<GoalHandleNavigateToGoal> goal_handle)
-    {
-        RCLCPP_ERROR(get_logger(), "Failed to follow the calculated path");
-        auto result = std::make_shared<NavigateToGoal::Result>();
-        result->success = false;
-        goal_handle->abort(result);
-    }
-
-    bool check_follow_path_success(const GoalHandleFollowPath::WrappedResult &result)
-    {
-        switch (result.code) 
-        {
-        case rclcpp_action::ResultCode::SUCCEEDED:
-            RCLCPP_INFO(this->get_logger(), "follow_path goal succeeded");
-            return true;
-        case rclcpp_action::ResultCode::ABORTED:
-            RCLCPP_ERROR(this->get_logger(), "follow_path goal was aborted");
-            return false;
-        case rclcpp_action::ResultCode::CANCELED:
-            RCLCPP_ERROR(this->get_logger(), "follow_path goal was canceled");
-            return false;
-        default:
-            RCLCPP_ERROR(this->get_logger(), "follow_path resulted in unknown result code");
-            return false;
-        }
-    }
-
-    // Converts a given path with the given resolution to a path with resolution 1 meter/cell
-    std::vector<geometry_msgs::msg::Point> normalize_path(const std::vector<CellCoordinate> &discrete_path,
-        const double &resolution)
-    {
-        // We are assuming the robot is currently located at the first cell in the path
-
-        RCLCPP_INFO(get_logger(), "Normalizing path using resolution: %f", resolution);
-
-        Pose curr_abs_pose = _pose_mgr.get_absolute_pose();
-        RCLCPP_INFO(get_logger(), "Normalizing path using current absolute pose: %f, %f, %f", 
-            curr_abs_pose.position.x, 
-            curr_abs_pose.position.y, 
-            curr_abs_pose.position.z);
-
-        // Distance in meters from the costmap origin
-        Pose curr_relative_pose = PoseManager::default_pose(); 
-        CellCoordinate start_cell = discrete_path.front();
-        curr_relative_pose.position.x = (double)start_cell.x * resolution;
-        curr_relative_pose.position.y = (double)start_cell.y * resolution;
-
-        // To transform path to absolute poses, add absolute pose of costmap origin to every point
-        Pose costmap_origin_abs_pose = PoseManager::pose_difference(curr_abs_pose, curr_relative_pose); // change to add
-
-        std::vector<geometry_msgs::msg::Point> path;
-        for (CellCoordinate discrete_point : discrete_path)
-        {
-            // Add absolute pose of costmap origin to each point
-            geometry_msgs::msg::Point point;
-            point.x = discrete_point.x * resolution + costmap_origin_abs_pose.position.x;
-            point.y = discrete_point.y * resolution + costmap_origin_abs_pose.position.y;
-            point.z = 0;
-            path.push_back(point);
-
-            RCLCPP_INFO(get_logger(), "\tPath cell coordinate: %d, %d", discrete_point.x, discrete_point.y);
-            RCLCPP_INFO(get_logger(), "\tPath absolute pose: %f, %f, %f", point.x, point.y, point.z);
-        }
-        return path;
-    }
 
     // Simulates robot motion by publishing feedback poses from the calculated path
     // Used with the nav_visualization package to visualize the robot's path
@@ -332,7 +222,7 @@ private:
     std::shared_ptr<plugin_base_classes::PathPlanner> _planner;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr _odom_subscriber;
     rclcpp_action::Server<NavigateToGoal>::SharedPtr _navigate_server;
-    rclcpp_action::Client<FollowPath>::SharedPtr _follow_path_client;
+    rclcpp::Publisher<FollowPathRequest>::SharedPtr _follow_path_pub;
     bool _isolate_path_planner;
     PoseManager _pose_mgr; 
 };  

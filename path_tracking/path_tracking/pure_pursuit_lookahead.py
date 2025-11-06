@@ -1,11 +1,12 @@
 import rclpy
 from rclpy.node import Node
-from rclpy.action import ActionServer
+# from rclpy.action import ActionServer
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from geometry_msgs.msg import Twist, PoseStamped
 from nav_msgs.msg import Odometry, Path
-from infra_interfaces.action import FollowPath
+# from infra_interfaces.action import FollowPath
+from infra_interfaces.msg import FollowPathRequest
 import asyncio
 import math
 import time
@@ -35,19 +36,19 @@ class PurePursuitNode(Node):
 
         self.cb_group = ReentrantCallbackGroup()
         self.create_subscription(Odometry, '/odom', self.odom_callback, 10, callback_group=self.cb_group)
-        # self.cmd_pub = self.create_publisher(Twist, '/joy_cmd_vel', 10)
-        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.cmd_pub = self.create_publisher(Twist, '/joy_cmd_vel', 10) # for running on the robot
+        # self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10) # for nav_visualization
         self.path_pub = self.create_publisher(Path, '/debug_path', 10)
         self.raw_path_pub = self.create_publisher(Path, '/debug_raw_path', 10)
 
         self.create_timer(1.0, self.publish_path, callback_group=self.cb_group)
         self.create_timer(1.0, self.publish_raw_path, callback_group=self.cb_group)
 
-        self.action_server = ActionServer(
-            self,
-            FollowPath,
-            'follow_path',
-            execute_callback=self.execute_callback,
+        self.subscription = self.create_subscription(
+            FollowPathRequest,
+            '/follow_path',
+            self.execute_callback,
+            10,
             callback_group=self.cb_group
         )
 
@@ -74,17 +75,18 @@ class PurePursuitNode(Node):
         print(self.exec_percent)
 
 
-    def execute_callback(self, goal_handle):
-        self.get_logger().info('Received a new path from action client.')
-        raw_path = [(float(p.x), float(p.y)) for p in goal_handle.request.path]
+    def execute_callback(self, path_msg):
+        self.get_logger().info('Received a new path from subscription.')
+        raw_path = [(float(p.x), float(p.y)) for p in path_msg.path]
         for i in raw_path:
             print(i)
         pathsz = int(len(raw_path) * self.exec_percent)
-        self.raw_path = raw_path[:pathsz]
-       
-
+        self.raw_path = raw_path
 
         self.path = self.smooth_path_spline(self.raw_path)
+        print("smoothed path:")
+        for i in self.path:
+            print(i)
         self.reached_goal = False
         self.visited = 0
 
@@ -92,8 +94,6 @@ class PurePursuitNode(Node):
             time.sleep(0.05)
 
         self.path = []
-        goal_handle.succeed()
-        return FollowPath.Result()
     
   
     def smooth_path(self, path, window_size=5):
@@ -119,7 +119,7 @@ class PurePursuitNode(Node):
         return list(zip(x_smooth, y_smooth))
     
     def smooth_path_spline(self, path, smoothing=0.1):
-        if len(path) < 3:
+        if len(path) <= 3:
             return path
 
         x = [p[0] for p in path]
