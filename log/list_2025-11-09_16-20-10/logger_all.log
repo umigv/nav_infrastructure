@@ -1,0 +1,120 @@
+[0.046s] DEBUG:colcon:Command line arguments: ['/usr/bin/colcon', 'list', '-p', '--base-paths', '/home/arv/arv-ws/src/nav_infrastructure', '--log-base', '/dev/null']
+[0.046s] DEBUG:colcon:Parsed command line arguments: Namespace(log_base=None, log_level=None, verb_name='list', build_base='build', ignore_user_meta=False, metas=['./colcon.meta'], base_paths=['/home/arv/arv-ws/src/nav_infrastructure', '--log-base', '/dev/null'], packages_ignore=None, packages_ignore_regex=None, paths=None, packages_up_to=None, packages_up_to_regex=None, packages_above=None, packages_above_and_dependencies=None, packages_above_depth=None, packages_select_by_dep=None, packages_skip_by_dep=None, packages_skip_up_to=None, packages_select_build_failed=False, packages_skip_build_finished=False, packages_select_test_failures=False, packages_skip_test_passed=False, packages_select=None, packages_skip=None, packages_select_regex=None, packages_skip_regex=None, packages_start=None, packages_end=None, allow_overriding=[], topological_order=False, names_only=False, paths_only=True, topological_graph=False, topological_graph_dot=False, topological_graph_density=False, topological_graph_legend=False, topological_graph_dot_cluster=False, topological_graph_dot_include_skipped=False, mixin_files=None, mixin=None, verb_parser=<colcon_mixin.mixin.mixin_argument.MixinArgumentDecorator object at 0xffff847390f0>, verb_extension=<colcon_package_information.verb.list.ListVerb object at 0xffff84738070>, main=<bound method ListVerb.main of <colcon_package_information.verb.list.ListVerb object at 0xffff84738070>>, mixin_verb=('list',))
+[0.068s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) check parameters
+[0.068s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) check parameters
+[0.068s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) check parameters
+[0.068s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) check parameters
+[0.068s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) discover
+[0.068s] INFO:colcon.colcon_core.package_discovery:Crawling recursively for packages in '/home/arv/arv-ws/src/nav_infrastructure', '/home/arv/arv-ws/src/nav_infrastructure/--log-base', '/dev/null'
+[0.069s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extensions ['ignore', 'ignore_ament_install']
+[0.069s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extension 'ignore'
+[0.069s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extension 'ignore_ament_install'
+[0.069s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extensions ['colcon_pkg']
+[0.069s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extension 'colcon_pkg'
+[0.069s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extensions ['colcon_meta']
+[0.069s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extension 'colcon_meta'
+[0.069s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extensions ['ros']
+[0.069s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extension 'ros'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extensions ['cmake', 'python']
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extension 'cmake'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extension 'python'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extensions ['python_setup_py']
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure) by extension 'python_setup_py'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extensions ['ignore', 'ignore_ament_install']
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extension 'ignore'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extension 'ignore_ament_install'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extensions ['colcon_pkg']
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extension 'colcon_pkg'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extensions ['colcon_meta']
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extension 'colcon_meta'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extensions ['ros']
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extension 'ros'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extensions ['cmake', 'python']
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extension 'cmake'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extension 'python'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extensions ['python_setup_py']
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation) by extension 'python_setup_py'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation/occupancy_grid_inflation) by extensions ['ignore', 'ignore_ament_install']
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation/occupancy_grid_inflation) by extension 'ignore'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation/occupancy_grid_inflation) by extension 'ignore_ament_install'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation/occupancy_grid_inflation) by extensions ['colcon_pkg']
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation/occupancy_grid_inflation) by extension 'colcon_pkg'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation/occupancy_grid_inflation) by extensions ['colcon_meta']
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation/occupancy_grid_inflation) by extension 'colcon_meta'
+[0.076s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation/occupancy_grid_inflation) by extensions ['ros']
+[0.077s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/custom_inflation/occupancy_grid_inflation) by extension 'ros'
+[0.078s] DEBUG:colcon.colcon_core.package_identification:Package '/home/arv/arv-ws/src/nav_infrastructure/custom_inflation/occupancy_grid_inflation' with type 'ros.ament_cmake' and name 'occupancy_grid_inflation'
+[0.078s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/goal_selection) by extensions ['ignore', 'ignore_ament_install']
+[0.078s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/goal_selection) by extension 'ignore'
+[0.078s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/goal_selection) by extension 'ignore_ament_install'
+[0.078s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/goal_selection) by extensions ['colcon_pkg']
+[0.078s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/goal_selection) by extension 'colcon_pkg'
+[0.078s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/goal_selection) by extensions ['colcon_meta']
+[0.078s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/goal_selection) by extension 'colcon_meta'
+[0.078s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/goal_selection) by extensions ['ros']
+[0.078s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/goal_selection) by extension 'ros'
+[0.079s] DEBUG:colcon.colcon_core.package_identification:Package '/home/arv/arv-ws/src/nav_infrastructure/goal_selection' with type 'ros.ament_python' and name 'goal_selection'
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/gps_coord_pub) by extensions ['ignore', 'ignore_ament_install']
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/gps_coord_pub) by extension 'ignore'
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/gps_coord_pub) by extension 'ignore_ament_install'
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/gps_coord_pub) by extensions ['colcon_pkg']
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/gps_coord_pub) by extension 'colcon_pkg'
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/gps_coord_pub) by extensions ['colcon_meta']
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/gps_coord_pub) by extension 'colcon_meta'
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/gps_coord_pub) by extensions ['ros']
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/gps_coord_pub) by extension 'ros'
+[0.079s] DEBUG:colcon.colcon_core.package_identification:Package '/home/arv/arv-ws/src/nav_infrastructure/gps_coord_pub' with type 'ros.ament_python' and name 'gps_coord_pub'
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_interfaces) by extensions ['ignore', 'ignore_ament_install']
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_interfaces) by extension 'ignore'
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_interfaces) by extension 'ignore_ament_install'
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_interfaces) by extensions ['colcon_pkg']
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_interfaces) by extension 'colcon_pkg'
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_interfaces) by extensions ['colcon_meta']
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_interfaces) by extension 'colcon_meta'
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_interfaces) by extensions ['ros']
+[0.079s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_interfaces) by extension 'ros'
+[0.080s] DEBUG:colcon.colcon_core.package_identification:Package '/home/arv/arv-ws/src/nav_infrastructure/infra_interfaces' with type 'ros.ament_cmake' and name 'infra_interfaces'
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_launch) by extensions ['ignore', 'ignore_ament_install']
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_launch) by extension 'ignore'
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_launch) by extension 'ignore_ament_install'
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_launch) by extensions ['colcon_pkg']
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_launch) by extension 'colcon_pkg'
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_launch) by extensions ['colcon_meta']
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_launch) by extension 'colcon_meta'
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_launch) by extensions ['ros']
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/infra_launch) by extension 'ros'
+[0.080s] DEBUG:colcon.colcon_core.package_identification:Package '/home/arv/arv-ws/src/nav_infrastructure/infra_launch' with type 'ros.ament_cmake' and name 'infra_launch'
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/log) by extensions ['ignore', 'ignore_ament_install']
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/log) by extension 'ignore'
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/log) ignored
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/map_interfaces) by extensions ['ignore', 'ignore_ament_install']
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/map_interfaces) by extension 'ignore'
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/map_interfaces) by extension 'ignore_ament_install'
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/map_interfaces) by extensions ['colcon_pkg']
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/map_interfaces) by extension 'colcon_pkg'
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/map_interfaces) by extensions ['colcon_meta']
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/map_interfaces) by extension 'colcon_meta'
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/map_interfaces) by extensions ['ros']
+[0.080s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/map_interfaces) by extension 'ros'
+[0.081s] DEBUG:colcon.colcon_core.package_identification:Package '/home/arv/arv-ws/src/nav_infrastructure/map_interfaces' with type 'ros.ament_cmake' and name 'map_interfaces'
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/path_tracking) by extensions ['ignore', 'ignore_ament_install']
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/path_tracking) by extension 'ignore'
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/path_tracking) by extension 'ignore_ament_install'
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/path_tracking) by extensions ['colcon_pkg']
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/path_tracking) by extension 'colcon_pkg'
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/path_tracking) by extensions ['colcon_meta']
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/path_tracking) by extension 'colcon_meta'
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/path_tracking) by extensions ['ros']
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/path_tracking) by extension 'ros'
+[0.081s] DEBUG:colcon.colcon_core.package_identification:Package '/home/arv/arv-ws/src/nav_infrastructure/path_tracking' with type 'ros.ament_python' and name 'path_tracking'
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/point_simulator) by extensions ['ignore', 'ignore_ament_install']
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/point_simulator) by extension 'ignore'
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/point_simulator) by extension 'ignore_ament_install'
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/point_simulator) by extensions ['colcon_pkg']
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/point_simulator) by extension 'colcon_pkg'
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/point_simulator) by extensions ['colcon_meta']
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/point_simulator) by extension 'colcon_meta'
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/point_simulator) by extensions ['ros']
+[0.081s] Level 1:colcon.colcon_core.package_identification:_identify(/home/arv/arv-ws/src/nav_infrastructure/point_simulator) by extension 'ros'
+[0.082s] DEBUG:colcon.colcon_core.package_identification:Package '/home/arv/arv-ws/src/nav_infrastructure/point_simulator' with type 'ros.ament_python' and name 'point_simulator'
+[0.082s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) using defaults

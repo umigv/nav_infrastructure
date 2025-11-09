@@ -1,7 +1,0 @@
-# Input
-geometry_msgs/Point[] path
----
-
-# Final output
-bool success
----
